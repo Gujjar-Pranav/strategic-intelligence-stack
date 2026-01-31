@@ -5,7 +5,9 @@ import clsx from "clsx";
 import { ArrowLeftRight, ChevronDown } from "lucide-react";
 import { fmtNumber, pct, getClusterNames } from "../utils";
 
-function toNum(v: any) {
+type AnyRecord = Record<string, unknown>;
+
+function toNum(v: unknown) {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -49,8 +51,77 @@ function DeltaBadge({
   );
 }
 
-export function SegmentCompare({ tables }: { tables: any }) {
-  const names = getClusterNames(tables);
+function MetricRow({
+  label,
+  left,
+  right,
+  delta,
+  higherIsBetter,
+  suffix,
+}: {
+  label: string;
+  left: React.ReactNode;
+  right: React.ReactNode;
+  delta?: number;
+  higherIsBetter?: boolean;
+  suffix?: string;
+}) {
+  return (
+    <div className="grid grid-cols-12 gap-3 py-3 border-t border-gray-100 text-sm items-center">
+      <div className="col-span-5 text-gray-900">{label}</div>
+      <div className="col-span-3 font-semibold text-gray-900">{left}</div>
+      <div className="col-span-3 font-semibold text-gray-900">{right}</div>
+      <div className="col-span-1 flex justify-end">
+        <DeltaBadge
+          delta={delta}
+          higherIsBetter={higherIsBetter}
+          suffix={suffix}
+        />
+      </div>
+    </div>
+  );
+}
+
+type Row = Record<string, unknown> & { Cluster_Name?: string };
+
+type RowsBundle = {
+  revenue: Row[];
+  promo: Row[];
+  risk: Row[];
+  channel: Row[];
+  clv: Row[];
+  rfm: Row[];
+};
+
+function rowsFromTables(tables: AnyRecord): RowsBundle {
+  const revenue = Array.isArray(tables.revenue_contribution_named)
+    ? (tables.revenue_contribution_named as Row[])
+    : [];
+  const promo = Array.isArray(tables.promo_roi) ? (tables.promo_roi as Row[]) : [];
+  const risk = Array.isArray(tables.discount_risk) ? (tables.discount_risk as Row[]) : [];
+  const channel = Array.isArray(tables.channel_strategy)
+    ? (tables.channel_strategy as Row[])
+    : [];
+  const clv = Array.isArray(tables.clv_summary) ? (tables.clv_summary as Row[]) : [];
+  const rfm = Array.isArray(tables.rfm_summary) ? (tables.rfm_summary as Row[]) : [];
+
+  return { revenue, promo, risk, channel, clv, rfm };
+}
+
+function rowFor(bundle: RowsBundle, name: string) {
+  const byName = (arr: Row[]) => arr.find((x) => x?.Cluster_Name === name);
+  return {
+    revenue: byName(bundle.revenue),
+    promo: byName(bundle.promo),
+    risk: byName(bundle.risk),
+    channel: byName(bundle.channel),
+    clv: byName(bundle.clv),
+    rfm: byName(bundle.rfm),
+  };
+}
+
+export function SegmentCompare({ tables }: { tables: AnyRecord }) {
+  const names = getClusterNames(tables as unknown);
 
   const [a, setA] = React.useState<string>(names[0] ?? "");
   const [b, setB] = React.useState<string>(names[1] ?? names[0] ?? "");
@@ -61,62 +132,16 @@ export function SegmentCompare({ tables }: { tables: any }) {
     if (!b && (names[1] ?? names[0])) setB(names[1] ?? names[0]);
   }, [names, a, b]);
 
-  const revenue = Array.isArray(tables.revenue_contribution_named)
-    ? tables.revenue_contribution_named
-    : [];
-  const promo = Array.isArray(tables.promo_roi) ? tables.promo_roi : [];
-  const risk = Array.isArray(tables.discount_risk) ? tables.discount_risk : [];
-  const channel = Array.isArray(tables.channel_strategy)
-    ? tables.channel_strategy
-    : [];
-  const clv = Array.isArray(tables.clv_summary) ? tables.clv_summary : [];
-  const rfm = Array.isArray(tables.rfm_summary) ? tables.rfm_summary : [];
-
-  function rowFor(name: string) {
-    return {
-      revenue: revenue.find((x: any) => x.Cluster_Name === name),
-      promo: promo.find((x: any) => x.Cluster_Name === name),
-      risk: risk.find((x: any) => x.Cluster_Name === name),
-      channel: channel.find((x: any) => x.Cluster_Name === name),
-      clv: clv.find((x: any) => x.Cluster_Name === name),
-      rfm: rfm.find((x: any) => x.Cluster_Name === name),
-    };
-  }
-
-  const A = rowFor(a);
-  const B = rowFor(b);
-
   if (!names.length) return null;
+
+  const bundle = rowsFromTables(tables);
+  const A = rowFor(bundle, a);
+  const B = rowFor(bundle, b);
 
   const swap = () => {
     setA(b);
     setB(a);
   };
-
-  const MetricRow = ({
-    label,
-    left,
-    right,
-    delta,
-    higherIsBetter,
-    suffix,
-  }: {
-    label: string;
-    left: React.ReactNode;
-    right: React.ReactNode;
-    delta?: number;
-    higherIsBetter?: boolean;
-    suffix?: string;
-  }) => (
-    <div className="grid grid-cols-12 gap-3 py-3 border-t border-gray-100 text-sm items-center">
-      <div className="col-span-5 text-gray-900">{label}</div>
-      <div className="col-span-3 font-semibold text-gray-900">{left}</div>
-      <div className="col-span-3 font-semibold text-gray-900">{right}</div>
-      <div className="col-span-1 flex justify-end">
-        <DeltaBadge delta={delta} higherIsBetter={higherIsBetter} suffix={suffix} />
-      </div>
-    </div>
-  );
 
   // numeric deltas: A - B
   const revenueShareDelta =
@@ -177,7 +202,7 @@ export function SegmentCompare({ tables }: { tables: any }) {
         </button>
       </div>
 
-      {/* ✅ Controls: ONE LINE on desktop, clean stack on mobile */}
+      {/* Controls */}
       <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
         <select
           value={a}
@@ -225,8 +250,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
           <div className="px-4 pb-2">
             <MetricRow
               label="Revenue share"
-              left={`${fmtNumber(A.revenue?.["Revenue_%"], 2)}%`}
-              right={`${fmtNumber(B.revenue?.["Revenue_%"], 2)}%`}
+              left={`${fmtNumber(A.revenue?.["Revenue_%"] as number, 2)}%`}
+              right={`${fmtNumber(B.revenue?.["Revenue_%"] as number, 2)}%`}
               delta={revenueShareDelta}
               higherIsBetter
               suffix="%"
@@ -234,8 +259,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Customers"
-              left={fmtNumber(A.revenue?.Customers, 0)}
-              right={fmtNumber(B.revenue?.Customers, 0)}
+              left={fmtNumber(A.revenue?.Customers as number, 0)}
+              right={fmtNumber(B.revenue?.Customers as number, 0)}
               delta={
                 toNum(A.revenue?.Customers) !== undefined &&
                 toNum(B.revenue?.Customers) !== undefined
@@ -248,8 +273,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Promo response"
-              left={pct(A.promo?.Promo_Response_Rate, 1)}
-              right={pct(B.promo?.Promo_Response_Rate, 1)}
+              left={pct(A.promo?.Promo_Response_Rate as number, 1)}
+              right={pct(B.promo?.Promo_Response_Rate as number, 1)}
               delta={promoDelta}
               higherIsBetter
               suffix="%"
@@ -257,8 +282,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Deal dependency"
-              left={fmtNumber(A.promo?.Avg_Deal_Dependency, 3)}
-              right={fmtNumber(B.promo?.Avg_Deal_Dependency, 3)}
+              left={fmtNumber(A.promo?.Avg_Deal_Dependency as number, 3)}
+              right={fmtNumber(B.promo?.Avg_Deal_Dependency as number, 3)}
               delta={
                 toNum(A.promo?.Avg_Deal_Dependency) !== undefined &&
                 toNum(B.promo?.Avg_Deal_Dependency) !== undefined
@@ -271,8 +296,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Discount addicted"
-              left={pct(A.risk?.Discount_Addicted_Rate, 1)}
-              right={pct(B.risk?.Discount_Addicted_Rate, 1)}
+              left={pct(A.risk?.Discount_Addicted_Rate as number, 1)}
+              right={pct(B.risk?.Discount_Addicted_Rate as number, 1)}
               delta={riskDelta}
               higherIsBetter={false}
               suffix="%"
@@ -280,16 +305,16 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Avg CLV proxy"
-              left={fmtNumber(A.clv?.Avg_CLV_Proxy, 0)}
-              right={fmtNumber(B.clv?.Avg_CLV_Proxy, 0)}
+              left={fmtNumber(A.clv?.Avg_CLV_Proxy as number, 0)}
+              right={fmtNumber(B.clv?.Avg_CLV_Proxy as number, 0)}
               delta={clvDelta}
               higherIsBetter
             />
 
             <MetricRow
               label="RFM Monetary"
-              left={fmtNumber(A.rfm?.Monetary_RFM, 2)}
-              right={fmtNumber(B.rfm?.Monetary_RFM, 2)}
+              left={fmtNumber(A.rfm?.Monetary_RFM as number, 2)}
+              right={fmtNumber(B.rfm?.Monetary_RFM as number, 2)}
               delta={
                 toNum(A.rfm?.Monetary_RFM) !== undefined &&
                 toNum(B.rfm?.Monetary_RFM) !== undefined
@@ -302,8 +327,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Channel Web %"
-              left={pct(A.channel?.Web_Purchase_Ratio, 1)}
-              right={pct(B.channel?.Web_Purchase_Ratio, 1)}
+              left={pct(A.channel?.Web_Purchase_Ratio as number, 1)}
+              right={pct(B.channel?.Web_Purchase_Ratio as number, 1)}
               delta={
                 toNum(A.channel?.Web_Purchase_Ratio) !== undefined &&
                 toNum(B.channel?.Web_Purchase_Ratio) !== undefined
@@ -318,8 +343,8 @@ export function SegmentCompare({ tables }: { tables: any }) {
 
             <MetricRow
               label="Channel Store %"
-              left={pct(A.channel?.Store_Purchase_Ratio, 1)}
-              right={pct(B.channel?.Store_Purchase_Ratio, 1)}
+              left={pct(A.channel?.Store_Purchase_Ratio as number, 1)}
+              right={pct(B.channel?.Store_Purchase_Ratio as number, 1)}
               delta={
                 toNum(A.channel?.Store_Purchase_Ratio) !== undefined &&
                 toNum(B.channel?.Store_Purchase_Ratio) !== undefined

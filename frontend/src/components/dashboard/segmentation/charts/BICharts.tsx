@@ -9,11 +9,15 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  type TooltipProps,
 } from "recharts";
 import { COLORS } from "../constants";
 import { ChartCard } from "./ChartCard";
 
-function safeNum(x: any) {
+type UnknownRecord = Record<string, unknown>;
+type Row = Record<string, unknown> & { Cluster_Name?: string };
+
+function safeNum(x: unknown) {
   const n = Number(x);
   return Number.isFinite(n) ? n : 0;
 }
@@ -62,6 +66,7 @@ function useIsPrintMode(printModeProp?: boolean) {
     }
 
     if (typeof window !== "undefined" && "matchMedia" in window) {
+      // Many browsers support this; in some Safari versions addListener/removeListener is used.
       const mql = window.matchMedia("print");
       const onChange = () => setIsPrinting(!!mql.matches);
       onChange();
@@ -71,9 +76,9 @@ function useIsPrintMode(printModeProp?: boolean) {
         return () => mql.removeEventListener("change", onChange);
       } catch {
         // Safari fallback
-        // @ts-ignore
+        // @ts-expect-error - Safari legacy API
         mql.addListener(onChange);
-        // @ts-ignore
+        // @ts-expect-error - Safari legacy API
         return () => mql.removeListener(onChange);
       }
     }
@@ -82,63 +87,33 @@ function useIsPrintMode(printModeProp?: boolean) {
   return isPrinting;
 }
 
-export function BICharts({
-  tables,
-  printMode,
-}: {
-  tables: any;
-  printMode?: boolean;
-}) {
-  const isPrintMode = useIsPrintMode(printMode);
+function isRowArray(v: unknown): v is Row[] {
+  return Array.isArray(v);
+}
 
-  const t = tables ?? {};
+function getRows(t: UnknownRecord, key: string): Row[] {
+  const v = t[key];
+  return isRowArray(v) ? v : [];
+}
 
-  const revenue = Array.isArray(t?.revenue_contribution_named)
-    ? t.revenue_contribution_named
-    : [];
-  const promo = Array.isArray(t?.promo_roi) ? t.promo_roi : [];
-  const risk = Array.isArray(t?.discount_risk) ? t.discount_risk : [];
-  const channel = Array.isArray(t?.channel_strategy) ? t.channel_strategy : [];
+function truncateLabel(v: unknown, maxLen: number) {
+  const s = String(v ?? "");
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+}
 
-  const revenueChart = revenue.map((r: any) => ({
-    cluster: r.Cluster_Name,
-    revenue_pct: safeNum(r["Revenue_%"]),
-    customer_pct: safeNum(r["Customer_%"]),
-  }));
+function makeXTicker(isPrintMode: boolean) {
+  const maxLen = isPrintMode ? 16 : 22;
 
-  const promoChart = [...promo]
-    .map((r: any) => ({
-      cluster: r.Cluster_Name,
-      promo_response: safeNum(r.Promo_Response_Rate) * 100,
-    }))
-    .sort((a, b) => b.promo_response - a.promo_response);
+  return function XTick(props: unknown) {
+    const p = props as {
+      x?: number;
+      y?: number;
+      payload?: { value?: unknown };
+    };
 
-  const riskChart = [...risk]
-    .map((r: any) => ({
-      cluster: r.Cluster_Name,
-      discount_addicted: safeNum(r.Discount_Addicted_Rate) * 100,
-    }))
-    .sort((a, b) => b.discount_addicted - a.discount_addicted);
-
-  const channelChart = channel.map((r: any) => ({
-    cluster: r.Cluster_Name,
-    web: safeNum(r.Web_Purchase_Ratio) * 100,
-    store: safeNum(r.Store_Purchase_Ratio) * 100,
-    catalog: safeNum(r.Catalog_Purchase_Ratio) * 100,
-  }));
-
-  const revVals = revenueChart.map((d) => d.revenue_pct);
-  const custVals = revenueChart.map((d) => d.customer_pct);
-  const promoVals = promoChart.map((d) => d.promo_response);
-  const riskVals = riskChart.map((d) => d.discount_addicted);
-  const webVals = channelChart.map((d) => d.web);
-  const storeVals = channelChart.map((d) => d.store);
-  const catalogVals = channelChart.map((d) => d.catalog);
-
-  const xTick = (props: any) => {
-    const { x, y, payload } = props;
-    const v = String(payload.value ?? "");
-    const trimmed = v.length > (isPrintMode ? 16 : 22) ? v.slice(0, isPrintMode ? 16 : 22) + "…" : v;
+    const x = typeof p.x === "number" ? p.x : 0;
+    const y = typeof p.y === "number" ? p.y : 0;
+    const label = truncateLabel(p.payload?.value, maxLen);
 
     return (
       <g transform={`translate(${x},${y})`}>
@@ -151,12 +126,14 @@ export function BICharts({
           transform={`rotate(${isPrintMode ? -18 : -22})`}
           style={{ fontSize: isPrintMode ? 9 : 10 }}
         >
-          {trimmed}
+          {label}
         </text>
       </g>
     );
   };
+}
 
+function makeTooltipProps(isPrintMode: boolean) {
   const tooltipCursor = { fill: "rgba(15, 23, 42, 0.06)" };
 
   const tooltipContentStyle: React.CSSProperties = {
@@ -188,30 +165,87 @@ export function BICharts({
     paddingBottom: 2,
   };
 
-  const tooltipFormatter = (value: any, name: any) => {
+  const formatter: TooltipProps<number, string>["formatter"] = (value, name) => {
     const n = Number(value);
     const v = Number.isFinite(n) ? `${n.toFixed(1)}%` : String(value ?? "—");
     return [v, String(name ?? "")];
   };
 
+  if (isPrintMode) {
+    const content: TooltipProps<number, string>["content"] = () => null;
+    return { content } as const;
+  }
+
+  return {
+    cursor: tooltipCursor,
+    contentStyle: tooltipContentStyle,
+    labelStyle: tooltipLabelStyle,
+    itemStyle: tooltipItemStyle,
+    formatter,
+  } as const;
+}
+
+export function BICharts({
+  tables,
+  printMode,
+}: {
+  tables: UnknownRecord;
+  printMode?: boolean;
+}) {
+  const isPrintMode = useIsPrintMode(printMode);
+  const t: UnknownRecord = tables ?? {};
+
+  const revenue = getRows(t, "revenue_contribution_named");
+  const promo = getRows(t, "promo_roi");
+  const risk = getRows(t, "discount_risk");
+  const channel = getRows(t, "channel_strategy");
+
+  const revenueChart = revenue.map((r) => ({
+    cluster: String(r.Cluster_Name ?? ""),
+    revenue_pct: safeNum(r["Revenue_%"]),
+    customer_pct: safeNum(r["Customer_%"]),
+  }));
+
+  const promoChart = [...promo]
+    .map((r) => ({
+      cluster: String(r.Cluster_Name ?? ""),
+      promo_response: safeNum(r.Promo_Response_Rate) * 100,
+    }))
+    .sort((a, b) => b.promo_response - a.promo_response);
+
+  const riskChart = [...risk]
+    .map((r) => ({
+      cluster: String(r.Cluster_Name ?? ""),
+      discount_addicted: safeNum(r.Discount_Addicted_Rate) * 100,
+    }))
+    .sort((a, b) => b.discount_addicted - a.discount_addicted);
+
+  const channelChart = channel.map((r) => ({
+    cluster: String(r.Cluster_Name ?? ""),
+    web: safeNum(r.Web_Purchase_Ratio) * 100,
+    store: safeNum(r.Store_Purchase_Ratio) * 100,
+    catalog: safeNum(r.Catalog_Purchase_Ratio) * 100,
+  }));
+
+  const revVals = revenueChart.map((d) => d.revenue_pct);
+  const custVals = revenueChart.map((d) => d.customer_pct);
+  const promoVals = promoChart.map((d) => d.promo_response);
+  const riskVals = riskChart.map((d) => d.discount_addicted);
+  const webVals = channelChart.map((d) => d.web);
+  const storeVals = channelChart.map((d) => d.store);
+  const catalogVals = channelChart.map((d) => d.catalog);
+
+  const xTick = makeXTicker(isPrintMode);
+  const tooltipProps = makeTooltipProps(isPrintMode);
+
   // Tighter in PDF so 4 charts fit
-  const chartHeight = isPrintMode ? 180 : "100%";
+  const chartHeight: number | string = isPrintMode ? 180 : "100%";
+  const commonBarProps = { isAnimationActive: !isPrintMode };
 
-  const tooltipProps = isPrintMode
-    ? { content: () => null }
-    : {
-        cursor: tooltipCursor,
-        contentStyle: tooltipContentStyle,
-        labelStyle: tooltipLabelStyle,
-        itemStyle: tooltipItemStyle,
-        formatter: tooltipFormatter,
-      };
+  const chartMargin = isPrintMode
+    ? { left: 6, right: 6, bottom: 26 }
+    : { left: 10, right: 10, bottom: 40 };
 
-  const commonBarProps = {
-    isAnimationActive: !isPrintMode,
-  };
-
-  const chartMargin = isPrintMode ? { left: 6, right: 6, bottom: 26 } : { left: 10, right: 10, bottom: 40 };
   const xAxisHeight = isPrintMode ? 52 : 70;
 
   return (
@@ -244,9 +278,21 @@ export function BICharts({
               tickLine={false}
               axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
             />
-            <Tooltip {...(tooltipProps as any)} />
-            <Bar dataKey="revenue_pct" name="Revenue" fill={COLORS.blue} radius={[8, 8, 0, 0]} {...commonBarProps} />
-            <Bar dataKey="customer_pct" name="Customers" fill={COLORS.purple} radius={[8, 8, 0, 0]} {...commonBarProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="revenue_pct"
+              name="Revenue"
+              fill={COLORS.blue}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="customer_pct"
+              name="Customers"
+              fill={COLORS.purple}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -278,8 +324,14 @@ export function BICharts({
               tickLine={false}
               axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
             />
-            <Tooltip {...(tooltipProps as any)} />
-            <Bar dataKey="promo_response" name="Promo response" fill={COLORS.emerald} radius={[8, 8, 0, 0]} {...commonBarProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="promo_response"
+              name="Promo response"
+              fill={COLORS.emerald}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -311,8 +363,14 @@ export function BICharts({
               tickLine={false}
               axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
             />
-            <Tooltip {...(tooltipProps as any)} />
-            <Bar dataKey="discount_addicted" name="Discount addicted" fill={COLORS.rose} radius={[8, 8, 0, 0]} {...commonBarProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="discount_addicted"
+              name="Discount addicted"
+              fill={COLORS.rose}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -323,8 +381,14 @@ export function BICharts({
         meta={
           <KpiRow>
             <KpiChip label="Web avg" value={`${avg(webVals).toFixed(1)}%`} />
-            <KpiChip label="Store avg" value={`${avg(storeVals).toFixed(1)}%`} />
-            <KpiChip label="Catalog avg" value={`${avg(catalogVals).toFixed(1)}%`} />
+            <KpiChip
+              label="Store avg"
+              value={`${avg(storeVals).toFixed(1)}%`}
+            />
+            <KpiChip
+              label="Catalog avg"
+              value={`${avg(catalogVals).toFixed(1)}%`}
+            />
           </KpiRow>
         }
       >
@@ -344,10 +408,29 @@ export function BICharts({
               tickLine={false}
               axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
             />
-            <Tooltip {...(tooltipProps as any)} />
-            <Bar dataKey="web" name="Web" stackId="a" fill={COLORS.teal} radius={[8, 8, 0, 0]} {...commonBarProps} />
-            <Bar dataKey="store" name="Store" stackId="a" fill={COLORS.amber} {...commonBarProps} />
-            <Bar dataKey="catalog" name="Catalog" stackId="a" fill={COLORS.purple} {...commonBarProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="web"
+              name="Web"
+              stackId="a"
+              fill={COLORS.teal}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="store"
+              name="Store"
+              stackId="a"
+              fill={COLORS.amber}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="catalog"
+              name="Catalog"
+              stackId="a"
+              fill={COLORS.purple}
+              {...commonBarProps}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
