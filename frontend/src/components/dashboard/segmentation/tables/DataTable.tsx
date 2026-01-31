@@ -12,7 +12,7 @@ type TableVariant =
   | "rfm"
   | "default";
 
-function pickNumber(v: any) {
+function pickNumber(v: unknown) {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -24,7 +24,7 @@ function clamp01(x: number) {
 /**
  * ONLY number coloring (no layout changes)
  */
-function numColor(variant: TableVariant, col: string, n?: number, row?: any) {
+function numColor(variant: TableVariant, col: string, n?: number) {
   if (typeof n !== "number") return "text-gray-900";
 
   // Generic safety: negatives -> rose, positives -> gray (avoid turning everything green)
@@ -115,15 +115,15 @@ function barColor(variant: TableVariant, col: string, n?: number) {
   return fill;
 }
 
-function toCsv(rows: any[], cols: string[]) {
-  const esc = (v: any) => {
+function toCsv(rows: unknown[], cols: string[]) {
+  const esc = (v: unknown) => {
     const s = String(v ?? "");
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
   const lines = [
     cols.map(esc).join(","),
-    ...rows.map((r) => cols.map((c) => esc(r?.[c])).join(",")),
+    ...rows.map((r: any) => cols.map((c) => esc(r?.[c])).join(",")),
   ];
   return lines.join("\n");
 }
@@ -202,7 +202,7 @@ function SparkBars3({
  * Decide which column gets micro-visual emphasis per variant
  * and how to render it.
  */
-function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
+function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any) {
   const v = pickNumber(raw);
 
   // Helpers for number formatting
@@ -224,7 +224,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, pctVal, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, pctVal))}>
               {asPct(pctVal, 2)}
             </span>
             <span className="text-[11px] text-gray-500">share</span>
@@ -244,7 +244,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, pctVal, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, pctVal))}>
               {asPct(pctVal, 2)}
             </span>
             <span className="text-[11px] text-gray-500">customers</span>
@@ -267,7 +267,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, rate, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, rate))}>
               {asRatePct(rate, 1)}
             </span>
             <span className="text-[11px] text-gray-500">response</span>
@@ -287,7 +287,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, dd, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, dd))}>
               {asNum(dd, 3)}
             </span>
             <span className="text-[11px] text-gray-500">deal dep.</span>
@@ -312,7 +312,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, r, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, r))}>
               {asRatePct(r, 1)}
             </span>
             <span
@@ -346,7 +346,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
       return (
         <div className="min-w-[140px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, ratio, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, ratio))}>
               {asRatePct(ratio, 1)}
             </span>
             <span className="text-[11px] text-gray-500">share</span>
@@ -389,7 +389,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
     if (col === "Avg_CLV_Proxy") {
       const n = pickNumber(raw);
       return (
-        <span className={clsx("font-semibold", numColor(variant, col, n, row))}>
+        <span className={clsx("font-semibold", numColor(variant, col, n))}>
           {asNum(n, 0)}
         </span>
       );
@@ -401,7 +401,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
     if (col === "Recency_RFM" || col === "Frequency_RFM" || col === "Monetary_RFM") {
       const n = pickNumber(raw);
       return (
-        <span className={clsx("font-semibold", numColor(variant, col, n, row))}>
+        <span className={clsx("font-semibold", numColor(variant, col, n))}>
           {asNum(n, 2)}
         </span>
       );
@@ -411,7 +411,7 @@ function cellRenderer(variant: TableVariant, col: string, raw: any, row: any) {
   // Default: if it's numeric, color it; otherwise keep as-is
   if (typeof v === "number") {
     return (
-      <span className={clsx("font-semibold", numColor(variant, col, v, row))}>
+      <span className={clsx("font-semibold", numColor(variant, col, v))}>
         {String(raw ?? "")}
       </span>
     );
@@ -429,33 +429,35 @@ export function DataTable({
   rows: any[];
   variant?: TableVariant;
 }) {
-  if (!rows?.length) return null;
-
-  const cols = Object.keys(rows[0] ?? {});
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const cols = Object.keys(safeRows[0] ?? {});
   const [q, setQ] = React.useState("");
+
+  // Keep behavior consistent: when there are no rows, search is effectively reset.
+  React.useEffect(() => {
+    if (!safeRows.length && q) setQ("");
+  }, [safeRows.length, q]);
 
   // for CLV visual normalization
   const maxClv = React.useMemo(() => {
     if (variant !== "clv") return undefined;
-    const vals = rows
+    const vals = safeRows
       .map((r) => pickNumber(r?.Avg_CLV_Proxy))
       .filter((x): x is number => typeof x === "number");
     if (!vals.length) return undefined;
     return Math.max(...vals);
-  }, [rows, variant]);
+  }, [safeRows, variant]);
 
   const filtered = React.useMemo(() => {
     const query = q.trim().toLowerCase();
-    if (!query) return rows;
-    return rows.filter((r) =>
-      cols.some((c) =>
-        String(r?.[c] ?? "").toLowerCase().includes(query)
-      )
+    if (!query) return safeRows;
+    return safeRows.filter((r) =>
+      cols.some((c) => String(r?.[c] ?? "").toLowerCase().includes(query))
     );
-  }, [q, rows, cols]);
+  }, [q, safeRows, cols]);
 
   // Add “rank bar” for CLV rows (no new columns, just enhanced cell render)
-  const renderCell = (col: string, raw: any, row: any) => {
+  const renderCell = (col: string, raw: unknown, row: any) => {
     if (variant === "clv" && col === "Avg_CLV_Proxy") {
       const n = pickNumber(raw);
       const denom =
@@ -466,7 +468,7 @@ export function DataTable({
       return (
         <div className="min-w-[220px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, n, row))}>
+            <span className={clsx("font-semibold", numColor(variant, col, n))}>
               {typeof n === "number"
                 ? n.toLocaleString(undefined, { maximumFractionDigits: 0 })
                 : "—"}
@@ -508,15 +510,18 @@ export function DataTable({
     return cellRenderer(variant, col, raw, row);
   };
 
+  if (!safeRows.length) return null;
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-sm font-semibold text-gray-900">{title}</div>
           <div className="mt-1 text-xs text-gray-600">
-            Rows: <span className="font-semibold text-gray-900">{filtered.length}</span>
-            {filtered.length !== rows.length ? (
-              <span className="text-gray-500"> (filtered from {rows.length})</span>
+            Rows:{" "}
+            <span className="font-semibold text-gray-900">{filtered.length}</span>
+            {filtered.length !== safeRows.length ? (
+              <span className="text-gray-500"> (filtered from {safeRows.length})</span>
             ) : null}
           </div>
         </div>
