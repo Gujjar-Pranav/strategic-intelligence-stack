@@ -3,29 +3,42 @@
 import React from "react";
 import clsx from "clsx";
 
-import { getExecExportPayload } from "@/components/dashboard/segmentation/exports/exportPayload";
+import {
+  ExecExportPayload,
+  getExecExportPayload,
+} from "@/components/dashboard/segmentation/exports/exportPayload";
 import { fmtNumber } from "@/components/dashboard/segmentation/utils";
 import { BICharts } from "@/components/dashboard/segmentation/charts/BICharts";
 
-function pickNum(x: any) {
+type Row = Record<string, unknown>;
+
+function pickNum(x: unknown): number | undefined {
   const n = Number(x);
   return Number.isFinite(n) ? n : undefined;
 }
 
-function bestBy(rows: any[], field: string) {
-  if (!Array.isArray(rows) || !rows.length) return null;
+function bestBy(rows: unknown, field: string): Row | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const safeRows = rows.filter((r): r is Row => !!r && typeof r === "object");
+  if (!safeRows.length) return null;
+
   return (
-    [...rows].sort(
+    [...safeRows].sort(
       (a, b) =>
         (pickNum(b?.[field]) ?? -Infinity) - (pickNum(a?.[field]) ?? -Infinity)
     )[0] ?? null
   );
 }
 
-function worstBy(rows: any[], field: string) {
-  if (!Array.isArray(rows) || !rows.length) return null;
+function worstBy(rows: unknown, field: string): Row | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const safeRows = rows.filter((r): r is Row => !!r && typeof r === "object");
+  if (!safeRows.length) return null;
+
   return (
-    [...rows].sort(
+    [...safeRows].sort(
       (a, b) =>
         (pickNum(a?.[field]) ?? Infinity) - (pickNum(b?.[field]) ?? Infinity)
     )[0] ?? null
@@ -40,10 +53,11 @@ function rateMaybe01(n?: number, digits = 1) {
   return typeof n === "number" ? `${(n * 100).toFixed(digits)}%` : "—";
 }
 
-function todayStamp(isoLike?: string) {
+function todayStamp(isoLike?: unknown) {
   if (!isoLike) return "";
-  const d = new Date(isoLike);
-  if (Number.isNaN(d.getTime())) return String(isoLike);
+  const s = String(isoLike);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
   return d.toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -133,10 +147,10 @@ function PrintTable({
   format,
 }: {
   title: string;
-  rows: any[];
+  rows: Row[];
   columns: string[];
   maxRows?: number;
-  format?: (col: string, v: any) => React.ReactNode;
+  format?: (col: string, v: unknown) => React.ReactNode;
 }) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const slice = safeRows.slice(0, maxRows);
@@ -196,7 +210,7 @@ function PrintTable({
   );
 }
 
-function formatAppendixValue(col: string, v: any) {
+function formatAppendixValue(col: string, v: unknown) {
   const n = pickNum(v);
 
   if (col === "Promo_Response_Rate" || col === "Discount_Addicted_Rate") {
@@ -219,8 +233,17 @@ function formatAppendixValue(col: string, v: any) {
   return String(v ?? "—");
 }
 
+function isRowArray(x: unknown): x is Row[] {
+  return Array.isArray(x) && x.every((r) => !!r && typeof r === "object");
+}
+
+function findRow(arr: Row[], name?: string): Row | undefined {
+  if (!name) return undefined;
+  return arr.find((x) => x?.Cluster_Name === name);
+}
+
 export default function ExecutiveExportPage() {
-  const [payload, setPayload] = React.useState<any>(null);
+  const [payload, setPayload] = React.useState<ExecExportPayload | null>(null);
   const [ready, setReady] = React.useState(false);
 
   const isPdf =
@@ -273,26 +296,19 @@ export default function ExecutiveExportPage() {
 
   const { tables, decisionBanner, actionTiles, manifest, mode } = payload;
 
-  const safeTables = tables ?? {};
-  const revenue = Array.isArray(safeTables?.revenue_contribution_named)
+  const safeTables: Record<string, unknown> =
+    (tables && typeof tables === "object" ? (tables as Record<string, unknown>) : {}) ??
+    {};
+
+  const revenue = isRowArray(safeTables.revenue_contribution_named)
     ? safeTables.revenue_contribution_named
     : [];
-  const promo = Array.isArray(safeTables?.promo_roi) ? safeTables.promo_roi : [];
-  const risk = Array.isArray(safeTables?.discount_risk)
-    ? safeTables.discount_risk
-    : [];
-  const channel = Array.isArray(safeTables?.channel_strategy)
-    ? safeTables.channel_strategy
-    : [];
-  const clv = Array.isArray(safeTables?.clv_summary)
-    ? safeTables.clv_summary
-    : [];
-  const persona = Array.isArray(safeTables?.persona_table)
-    ? safeTables.persona_table
-    : [];
-  const rfm = Array.isArray(safeTables?.rfm_summary)
-    ? safeTables.rfm_summary
-    : [];
+  const promo = isRowArray(safeTables.promo_roi) ? safeTables.promo_roi : [];
+  const risk = isRowArray(safeTables.discount_risk) ? safeTables.discount_risk : [];
+  const channel = isRowArray(safeTables.channel_strategy) ? safeTables.channel_strategy : [];
+  const clv = isRowArray(safeTables.clv_summary) ? safeTables.clv_summary : [];
+  const persona = isRowArray(safeTables.persona_table) ? safeTables.persona_table : [];
+  const rfm = isRowArray(safeTables.rfm_summary) ? safeTables.rfm_summary : [];
 
   const topRevenue = bestBy(revenue, "Revenue_%");
   const topCustomers = bestBy(revenue, "Customer_%");
@@ -301,12 +317,9 @@ export default function ExecutiveExportPage() {
   const topClv = bestBy(clv, "Avg_CLV_Proxy");
   const safestRisk = worstBy(risk, "Discount_Addicted_Rate");
 
-  const findRow = (arr: any[], name?: string) =>
-    arr.find((x) => x?.Cluster_Name === name);
-
-  const tr = topRevenue?.Cluster_Name;
-  const tp = topPromo?.Cluster_Name;
-  const tk = topRisk?.Cluster_Name;
+  const tr = String(topRevenue?.Cluster_Name ?? "");
+  const tp = String(topPromo?.Cluster_Name ?? "");
+  const tk = String(topRisk?.Cluster_Name ?? "");
 
   const trPromo = findRow(promo, tr);
   const trRisk = findRow(risk, tr);
@@ -321,9 +334,9 @@ export default function ExecutiveExportPage() {
 
   const runMeta =
     mode === "upload" && manifest?.run
-      ? `Model v${manifest?.model?.version ?? "—"} · k=${
+      ? `Model v${String(manifest?.model?.version ?? "—")} · k=${String(
           manifest?.model?.k ?? "—"
-        } · Created ${todayStamp(createdAt)}`
+        )} · Created ${todayStamp(createdAt)}`
       : "Demo run";
 
   const oppBullets: string[] = [];
@@ -408,16 +421,18 @@ export default function ExecutiveExportPage() {
       );
     }
   }
-  if (safestRisk?.Cluster_Name) {
+  if (String(safestRisk?.Cluster_Name ?? "")) {
     riskBullets.push(
-      `Lowest-risk segment: “${safestRisk.Cluster_Name}” (safer for retention-led offers).`
+      `Lowest-risk segment: “${String(
+        safestRisk?.Cluster_Name ?? "—"
+      )}” (safer for retention-led offers).`
     );
   }
 
   const plan30: string[] = [
-    `Confirm priority segments: revenue engine (“${tr ?? "—"}”), promo winner (“${
-      tp ?? "—"
-    }”), risk watchlist (“${tk ?? "—"}”).`,
+    `Confirm priority segments: revenue engine (“${tr || "—"}”), promo winner (“${
+      tp || "—"
+    }”), risk watchlist (“${tk || "—"}”).`,
     "Define promo guardrails (caps, eligibility, cooldown windows).",
     "Align channel investment by segment preference (web/store/catalog).",
   ];
@@ -534,7 +549,7 @@ export default function ExecutiveExportPage() {
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Top revenue segment"
-            value={topRevenue?.Cluster_Name ?? "—"}
+            value={String(topRevenue?.Cluster_Name ?? "—")}
             note={
               topRevenue ? (
                 <>
@@ -554,7 +569,7 @@ export default function ExecutiveExportPage() {
           />
           <StatCard
             label="Largest customer base"
-            value={topCustomers?.Cluster_Name ?? "—"}
+            value={String(topCustomers?.Cluster_Name ?? "—")}
             note={
               topCustomers ? (
                 <>
@@ -570,7 +585,7 @@ export default function ExecutiveExportPage() {
           />
           <StatCard
             label="Best promo responder"
-            value={topPromo?.Cluster_Name ?? "—"}
+            value={String(topPromo?.Cluster_Name ?? "—")}
             note={
               topPromo ? (
                 <>
@@ -586,7 +601,7 @@ export default function ExecutiveExportPage() {
           />
           <StatCard
             label="Highest discount risk"
-            value={topRisk?.Cluster_Name ?? "—"}
+            value={String(topRisk?.Cluster_Name ?? "—")}
             note={
               topRisk ? (
                 <>
@@ -614,7 +629,7 @@ export default function ExecutiveExportPage() {
                 Revenue engine
               </div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
-                {tr ?? "—"}
+                {tr || "—"}
               </div>
               <div className="mt-1 text-xs text-gray-600">
                 Revenue{" "}
@@ -633,7 +648,7 @@ export default function ExecutiveExportPage() {
                 Promo winner
               </div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
-                {tp ?? "—"}
+                {tp || "—"}
               </div>
               <div className="mt-1 text-xs text-gray-600">
                 Response{" "}
@@ -648,7 +663,7 @@ export default function ExecutiveExportPage() {
                 Top CLV
               </div>
               <div className="mt-2 text-sm font-semibold text-gray-900">
-                {topClv?.Cluster_Name ?? "—"}
+                {String(topClv?.Cluster_Name ?? "—")}
               </div>
               <div className="mt-1 text-xs text-gray-600">
                 CLV proxy{" "}
@@ -710,27 +725,41 @@ export default function ExecutiveExportPage() {
         </div>
 
         <div className="mt-4 exec-keep rounded-2xl border border-gray-200 bg-white p-5">
-          <SectionTitle title="4.1 Action tiles" sub="Next best moves for execution." />
+          <SectionTitle
+            title="4.1 Action tiles"
+            sub="Next best moves for execution."
+          />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {(Array.isArray(actionTiles) ? actionTiles : [])
               .slice(0, 4)
-              .map((t: any, idx: number) => (
-                <div
-                  key={t?.title ?? idx}
-                  className="rounded-2xl border border-gray-200 bg-white p-4"
-                >
-                  <div className="text-xs text-gray-600">{t?.title ?? "—"}</div>
-                  <div className="mt-1 text-sm font-semibold text-gray-900">
-                    {t?.bold ?? "—"}
+              .map((t, idx: number) => {
+                const obj =
+                  t && typeof t === "object" ? (t as Record<string, unknown>) : {};
+                return (
+                  <div
+                    key={String(obj?.title ?? idx)}
+                    className="rounded-2xl border border-gray-200 bg-white p-4"
+                  >
+                    <div className="text-xs text-gray-600">
+                      {String(obj?.title ?? "—")}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-gray-900">
+                      {String(obj?.bold ?? "—")}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-700">
+                      {String(obj?.sub ?? "")}
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs text-gray-700">{t?.sub ?? ""}</div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 exec-keep">
-          <SectionTitle title="4.2 30 / 60 / 90-day plan" sub="Practical rollout sequence." />
+          <SectionTitle
+            title="4.2 30 / 60 / 90-day plan"
+            sub="Practical rollout sequence."
+          />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <InsightBox title="Next 30 days" bullets={plan30} />
             <InsightBox title="Next 60 days" bullets={plan60} />
@@ -757,7 +786,8 @@ export default function ExecutiveExportPage() {
             <BICharts tables={safeTables} printMode />
           </div>
           <div className="mt-3 text-[11px] text-gray-500">
-            Note: Tooltips and interactive controls are suppressed in print for a clean PDF.
+            Note: Tooltips and interactive controls are suppressed in print for a
+            clean PDF.
           </div>
         </div>
       </section>
@@ -859,7 +889,8 @@ export default function ExecutiveExportPage() {
           </div>
 
           <div className="mt-4 text-[11px] text-gray-500">
-            Notes: Promo/Risk/Channel columns are rates. This appendix prints them as percentages for readability.
+            Notes: Promo/Risk/Channel columns are rates. This appendix prints
+            them as percentages for readability.
           </div>
         </div>
 
