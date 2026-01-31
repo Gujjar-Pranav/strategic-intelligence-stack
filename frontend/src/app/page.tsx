@@ -33,7 +33,9 @@ function ColorNumbers({ value }: { value: React.ReactNode }) {
   if (typeof value !== "string" && typeof value !== "number") return <>{value}</>;
 
   const text = String(value);
-  const parts = text.split(/(\-?\d+(?:,\d{3})*(?:\.\d+)?)/g);
+
+  // ✅ removed useless escape
+  const parts = text.split(/(-?\d+(?:,\d{3})*(?:\.\d+)?)/g);
 
   return (
     <>
@@ -71,7 +73,6 @@ function Pill({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* ✅ only number parts colored */}
         <div className="text-sm font-semibold text-gray-900">
           <ColorNumbers value={value} />
         </div>
@@ -105,7 +106,7 @@ function MiniInput({
 
       <input
         type={type}
-        value={value as any}
+        value={String(value)}
         onChange={(e) => onChange(e.target.value)}
         className="h-9 w-28 rounded-full border border-gray-200 bg-white px-3 text-sm font-semibold text-indigo-600 outline-none focus:border-gray-300"
       />
@@ -118,8 +119,8 @@ export default function HomePage() {
   const [runId, setRunId] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState<TabKey>("overview");
 
-  const [ttl, setTtl] = React.useState<string>("30m");
-  const [sampleSize, setSampleSize] = React.useState<number>(1200);
+  const [ttl, setTtl] = React.useState("30m");
+  const [sampleSize, setSampleSize] = React.useState(1200);
 
   /** Upload */
   const uploadMut = useMutation({
@@ -155,7 +156,7 @@ export default function HomePage() {
     enabled: mode === "demo",
   });
 
-  const loadDemo = async () => {
+  const loadDemo = () => {
     setMode("demo");
     setRunId("demo");
     setActiveTab("overview");
@@ -165,7 +166,7 @@ export default function HomePage() {
   const statusText =
     mode === "demo" ? "Demo ready" : mode === "upload" ? "Upload ready" : "Ready";
 
-  const runCardPrimary = mode === "demo" ? "demo" : runId ? runId : "—";
+  const runCardPrimary = mode === "demo" ? "demo" : runId ?? "—";
 
   const uploadRevenueProxy =
     manifest?.dataset?.revenue_proxy ??
@@ -175,52 +176,6 @@ export default function HomePage() {
   const tables = getTables(mode, demoClusterInsightsQ.data, manifestRaw);
   const decisionBanner = buildDecisionBanner({ tables });
   const actionTiles = buildActionTiles({ tables });
-
-  /** Tabs */
-  const tabContent = () => {
-    switch (activeTab) {
-      case "overview":
-        return (
-          <Overview
-            mode={mode}
-            tables={tables}
-            decisionBanner={decisionBanner}
-            actionTiles={actionTiles}
-            demoInsightsQ={demoInsightsQ}
-            demoClusterInsightsQ={demoClusterInsightsQ}
-            manifestQ={manifestQ}
-            manifestRaw={manifestRaw}
-            manifest={manifest}
-          />
-        );
-
-      case "segments":
-        return <SegmentsTab tables={tables} />;
-
-      case "tables":
-        return <TablesTab tables={tables} />;
-
-      case "simulation":
-        return <Simulation mode={mode} tables={tables} />;
-
-      case "exports":
-        return (
-          <ExportsTab
-            mode={mode}
-            runId={runId}
-            manifestFiles={manifestFiles}
-            manifestRaw={manifestRaw}
-            manifest={manifest}
-            decisionBanner={decisionBanner}
-            actionTiles={actionTiles}
-            tables={tables}
-          />
-        );
-
-      default:
-        return null;
-    }
-  };
 
   const statusDotClass = uploadMut.isPending
     ? "bg-amber-500"
@@ -233,84 +188,55 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        {/* Header */}
         <Header
           onLoadDemo={loadDemo}
           onFileSelected={(file) => uploadMut.mutate(file)}
         />
 
-        {/* ONE compact premium strip */}
         <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            {/* Left: compact inputs */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <MiniInput
-                label="TTL"
-                hint="auto delete"
-                value={ttl}
-                onChange={(v) => setTtl(v)}
-                type="text"
-              />
-              <MiniInput
-                label="Sample"
-                hint="preview"
-                value={sampleSize}
-                onChange={(v) => setSampleSize(Number(v || 0))}
-                type="number"
-              />
-            </div>
-
-            {/* Right: context pills */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
-              <Pill
-                label="Run"
-                value={runCardPrimary}
-                sub={mode === "idle" ? "mode: —" : `mode: ${mode}`}
-              />
-
-              <Pill
-                label="Revenue"
-                value={mode === "demo" ? "Total_Spend" : String(uploadRevenueProxy)}
-              />
-
-              <Pill
-                label="Status"
-                value={uploadMut.isPending ? "Uploading…" : statusText}
-                sub="Backend: 8000"
-                right={
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={[
-                        "inline-flex h-2.5 w-2.5 rounded-full",
-                        statusDotClass,
-                      ].join(" ")}
-                    />
-                    <span className="text-xs font-semibold text-gray-600">
-                      {uploadMut.isError
-                        ? "Error"
-                        : uploadMut.isPending
-                        ? "Working"
-                        : "OK"}
-                    </span>
-                  </div>
-                }
-              />
-            </div>
-          </div>
-
           {uploadMut.isError && (
             <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               Upload failed:{" "}
-              {(uploadMut.error as any)?.message || "unknown error"}
+              {uploadMut.error instanceof Error
+                ? uploadMut.error.message
+                : "unknown error"}
             </div>
           )}
         </div>
 
-        {/* Tabs */}
         <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
           <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
           <div className="mt-6 border-t border-gray-100 pt-6">
-            {tabContent()}
+            {activeTab === "overview" && (
+              <Overview
+                mode={mode}
+                tables={tables}
+                decisionBanner={decisionBanner}
+                actionTiles={actionTiles}
+                demoInsightsQ={demoInsightsQ}
+                demoClusterInsightsQ={demoClusterInsightsQ}
+                manifestQ={manifestQ}
+                manifestRaw={manifestRaw}
+                manifest={manifest}
+              />
+            )}
+            {activeTab === "segments" && <SegmentsTab tables={tables} />}
+            {activeTab === "tables" && <TablesTab tables={tables} />}
+            {activeTab === "simulation" && (
+              <Simulation mode={mode} tables={tables} />
+            )}
+            {activeTab === "exports" && (
+              <ExportsTab
+                mode={mode}
+                runId={runId}
+                manifestFiles={manifestFiles}
+                manifestRaw={manifestRaw}
+                manifest={manifest}
+                decisionBanner={decisionBanner}
+                actionTiles={actionTiles}
+                tables={tables}
+              />
+            )}
           </div>
         </div>
       </div>
