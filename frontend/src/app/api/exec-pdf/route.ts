@@ -31,7 +31,9 @@ function firstExisting(paths: string[]) {
   for (const p of paths) {
     try {
       if (p && fs.existsSync(p)) return p;
-    } catch {}
+    } catch {
+      /* ignore fs errors / permission issues */
+    }
   }
   return "";
 }
@@ -149,7 +151,9 @@ export async function POST(req: Request) {
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
-        } catch {}
+        } catch {
+          /* ignore (e.g., blocked storage in some contexts) */
+        }
       },
       EXEC_EXPORT_KEY,
       raw
@@ -171,7 +175,9 @@ export async function POST(req: Request) {
       .waitForFunction(() => (document as any).fonts?.status === "loaded", {
         timeout: 30_000,
       })
-      .catch(() => {});
+      .catch(() => {
+        /* ignore font readiness failures */
+      });
     await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
