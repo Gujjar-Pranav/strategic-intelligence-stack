@@ -12,9 +12,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type UnknownRecord = Record<string, unknown>;
-
-function safeStr(x: unknown) {
+function safeStr(x: any) {
   return typeof x === "string" ? x : "";
 }
 
@@ -33,9 +31,7 @@ function firstExisting(paths: string[]) {
   for (const p of paths) {
     try {
       if (p && fs.existsSync(p)) return p;
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
   return "";
 }
@@ -95,16 +91,6 @@ async function resolveChromeExecutablePath() {
   ]);
 }
 
-function getErrorMessage(e: unknown) {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  try {
-    return JSON.stringify(e);
-  } catch {
-    return "Failed to generate PDF";
-  }
-}
-
 export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as ExecExportPayload;
@@ -114,24 +100,16 @@ export async function POST(req: Request) {
     const proto = req.headers.get("x-forwarded-proto") || "http";
     const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
 
-    const payloadAny = payload as unknown as UnknownRecord;
-    const manifest =
-      (payloadAny["manifest"] as UnknownRecord | undefined) ?? undefined;
-
-    const run = (manifest?.["run"] as UnknownRecord | undefined) ?? undefined;
-
+    const manifest = (payload as any)?.manifest;
     const createdAt =
-      safeStr(run?.["created_at_utc"]) ||
-      safeStr(run?.["created_at"]) ||
-      safeStr(manifest?.["created_at_utc"]) ||
-      safeStr(manifest?.["created_at"]);
-
-    const dataset =
-      (manifest?.["dataset"] as UnknownRecord | undefined) ?? undefined;
+      manifest?.run?.created_at_utc ||
+      manifest?.run?.created_at ||
+      manifest?.created_at_utc ||
+      manifest?.created_at;
 
     const clientLabel =
-      safeStr(dataset?.["client_name"]) ||
-      safeStr(manifest?.["client_name"]) ||
+      safeStr(manifest?.dataset?.client_name) ||
+      safeStr(manifest?.client_name) ||
       "Customer Segmentation";
 
     const reportTitle = "Segmentation & Growth Recommendations";
@@ -171,9 +149,7 @@ export async function POST(req: Request) {
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
-        } catch {
-          // ignore
-        }
+        } catch {}
       },
       EXEC_EXPORT_KEY,
       raw
@@ -192,14 +168,9 @@ export async function POST(req: Request) {
 
     // settle fonts + final paint
     await page
-      .waitForFunction(
-        () => {
-          // document.fonts is supported in modern Chromium; if missing, don't block.
-          const d = document as unknown as { fonts?: { status?: string } };
-          return d.fonts?.status === "loaded" || !d.fonts;
-        },
-        { timeout: 30_000 }
-      )
+      .waitForFunction(() => (document as any).fonts?.status === "loaded", {
+        timeout: 30_000,
+      })
       .catch(() => {});
     await new Promise((r) => setTimeout(r, 250));
 
@@ -248,7 +219,9 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
-  } catch (e: unknown) {
-    return new NextResponse(getErrorMessage(e), { status: 500 });
+  } catch (e: any) {
+    return new NextResponse(e?.message ?? "Failed to generate PDF", {
+      status: 500,
+    });
   }
 }
