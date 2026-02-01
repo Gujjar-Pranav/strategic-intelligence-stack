@@ -12,7 +12,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function safeStr(x: any) {
+function safeStr(x: unknown) {
   return typeof x === "string" ? x : "";
 }
 
@@ -31,8 +31,9 @@ function firstExisting(paths: string[]) {
   for (const p of paths) {
     try {
       if (p && fs.existsSync(p)) return p;
-    } catch {
-      /* ignore fs errors / permission issues */
+    } catch (err) {
+      // ignore (fs may throw on some environments)
+      void err;
     }
   }
   return "";
@@ -102,16 +103,23 @@ export async function POST(req: Request) {
     const proto = req.headers.get("x-forwarded-proto") || "http";
     const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
 
-    const manifest = (payload as any)?.manifest;
+    const manifest = (payload as { manifest?: unknown })?.manifest as
+      | Record<string, unknown>
+      | undefined;
+
+    const run = (manifest?.["run"] as Record<string, unknown> | undefined) ?? undefined;
+
     const createdAt =
-      manifest?.run?.created_at_utc ||
-      manifest?.run?.created_at ||
-      manifest?.created_at_utc ||
-      manifest?.created_at;
+      (run?.["created_at_utc"] as string | undefined) ||
+      (run?.["created_at"] as string | undefined) ||
+      (manifest?.["created_at_utc"] as string | undefined) ||
+      (manifest?.["created_at"] as string | undefined);
+
+    const dataset = (manifest?.["dataset"] as Record<string, unknown> | undefined) ?? undefined;
 
     const clientLabel =
-      safeStr(manifest?.dataset?.client_name) ||
-      safeStr(manifest?.client_name) ||
+      safeStr(dataset?.["client_name"]) ||
+      safeStr(manifest?.["client_name"]) ||
       "Customer Segmentation";
 
     const reportTitle = "Segmentation & Growth Recommendations";
@@ -131,7 +139,8 @@ export async function POST(req: Request) {
 
     const browser = await puppeteer.launch({
       executablePath,
-      headless: isVercel ? chromium.headless : true,
+      // ✅ chromium.headless is not in typings for some versions; keep always-headless.
+      headless: true,
       defaultViewport: { width: 1240, height: 1754 }, // stable A4-ish render
       args: isVercel
         ? chromium.args
@@ -151,8 +160,9 @@ export async function POST(req: Request) {
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
-        } catch {
-          /* ignore (e.g., blocked storage in some contexts) */
+        } catch (err) {
+          // ignore (storage may be blocked in some contexts)
+          void err;
         }
       },
       EXEC_EXPORT_KEY,
@@ -171,13 +181,15 @@ export async function POST(req: Request) {
     });
 
     // settle fonts + final paint
-    await page
-      .waitForFunction(() => (document as any).fonts?.status === "loaded", {
-        timeout: 30_000,
-      })
-      .catch(() => {
-        /* ignore font readiness failures */
-      });
+    try {
+      await page.waitForFunction(
+        () => (document as unknown as { fonts?: { status?: string } }).fonts?.status === "loaded",
+        { timeout: 30_000 }
+      );
+    } catch (err) {
+      // fonts API may not exist; ok to proceed
+      void err;
+    }
     await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
@@ -225,9 +237,8 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
-  } catch (e: any) {
-    return new NextResponse(e?.message ?? "Failed to generate PDF", {
-      status: 500,
-    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Failed to generate PDF";
+    return new NextResponse(msg, { status: 500 });
   }
 }
