@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import clsx from "clsx";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { fmtNumber, toActionBullets, pickSpotlightCluster } from "../utils";
 
@@ -23,11 +22,17 @@ function MetricChip({
 }
 
 export function TopSegmentSpotlight({ tables }: { tables: any }) {
+  // ✅ Hooks must be called unconditionally
+  const [open, setOpen] = React.useState(true);
+
   const persona = Array.isArray(tables.persona_table) ? tables.persona_table : [];
   const promo = Array.isArray(tables.promo_roi) ? tables.promo_roi : [];
   const risk = Array.isArray(tables.discount_risk) ? tables.discount_risk : [];
   const channel = Array.isArray(tables.channel_strategy) ? tables.channel_strategy : [];
-  const revenue = Array.isArray(tables.revenue_contribution_named) ? tables.revenue_contribution_named : [];
+  const revenue = Array.isArray(tables.revenue_contribution_named)
+    ? tables.revenue_contribution_named
+    : [];
+
   if (!revenue.length) return null;
 
   const spot = pickSpotlightCluster(tables);
@@ -40,7 +45,6 @@ export function TopSegmentSpotlight({ tables }: { tables: any }) {
   const channelRow = channel.find((x: any) => x?.Cluster_Name === name);
 
   const bullets = toActionBullets({ personaRow, promoRow, riskRow, channelRow });
-  const [open, setOpen] = React.useState(true);
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
