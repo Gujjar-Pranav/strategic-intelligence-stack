@@ -3,17 +3,13 @@
 import React from "react";
 import clsx from "clsx";
 
-function Dot() {
-  return <span className="mx-2 text-gray-300">•</span>;
-}
-
 function ColorNumbers({ value }: { value: React.ReactNode }) {
   if (typeof value !== "string" && typeof value !== "number") return <>{value}</>;
 
   const text = String(value);
 
   // split keeping numbers
-  const parts = text.split(/(\-?\d+(?:,\d{3})*(?:\.\d+)?)/g);
+  const parts = text.split(/(-?\d+(?:,\d{3})*(?:\.\d+)?)/g);
 
   return (
     <>
