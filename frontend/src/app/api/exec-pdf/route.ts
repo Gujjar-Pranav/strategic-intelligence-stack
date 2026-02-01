@@ -32,7 +32,6 @@ function firstExisting(paths: string[]) {
     try {
       if (p && fs.existsSync(p)) return p;
     } catch (err) {
-      // ignore (fs may throw on some environments)
       void err;
     }
   }
@@ -40,7 +39,6 @@ function firstExisting(paths: string[]) {
 }
 
 async function resolveChromeExecutablePath() {
-  // If user provides explicit Chrome path, prefer it (works local + prod)
   const envPath =
     process.env.CHROME_PATH ||
     process.env.PUPPETEER_EXECUTABLE_PATH ||
@@ -48,14 +46,12 @@ async function resolveChromeExecutablePath() {
 
   if (envPath && fs.existsSync(envPath)) return envPath;
 
-  // Vercel/serverless: use Sparticuz Chromium
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
     const p = await chromium.executablePath();
     if (p && fs.existsSync(p)) return p;
   }
 
-  // Local dev fallbacks (common installs)
   const platform = process.platform;
 
   if (platform === "darwin") {
@@ -82,7 +78,6 @@ async function resolveChromeExecutablePath() {
     ]);
   }
 
-  // linux
   return firstExisting([
     "/usr/bin/google-chrome-stable",
     "/usr/bin/google-chrome",
@@ -107,7 +102,8 @@ export async function POST(req: Request) {
       | Record<string, unknown>
       | undefined;
 
-    const run = (manifest?.["run"] as Record<string, unknown> | undefined) ?? undefined;
+    const run =
+      (manifest?.["run"] as Record<string, unknown> | undefined) ?? undefined;
 
     const createdAt =
       (run?.["created_at_utc"] as string | undefined) ||
@@ -115,7 +111,8 @@ export async function POST(req: Request) {
       (manifest?.["created_at_utc"] as string | undefined) ||
       (manifest?.["created_at"] as string | undefined);
 
-    const dataset = (manifest?.["dataset"] as Record<string, unknown> | undefined) ?? undefined;
+    const dataset =
+      (manifest?.["dataset"] as Record<string, unknown> | undefined) ?? undefined;
 
     const clientLabel =
       safeStr(dataset?.["client_name"]) ||
@@ -139,9 +136,8 @@ export async function POST(req: Request) {
 
     const browser = await puppeteer.launch({
       executablePath,
-      // ✅ chromium.headless is not in typings for some versions; keep always-headless.
       headless: true,
-      defaultViewport: { width: 1240, height: 1754 }, // stable A4-ish render
+      defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
         : [
@@ -154,14 +150,12 @@ export async function POST(req: Request) {
 
     const page = await browser.newPage();
 
-    // Inject sessionStorage BEFORE the export page loads
     const raw = JSON.stringify(payload);
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
         } catch (err) {
-          // ignore (storage may be blocked in some contexts)
           void err;
         }
       },
@@ -169,25 +163,23 @@ export async function POST(req: Request) {
       raw
     );
 
-    // Load export route
     await page.goto(`${baseUrl}/export/executive?print=1`, {
       waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
-    // Wait for layout + charts
     await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
     await page.waitForSelector(".exec-print-charts .recharts-surface", {
       timeout: 60_000,
     });
 
-    // settle fonts + final paint
     try {
       await page.waitForFunction(
-        () => (document as unknown as { fonts?: { status?: string } }).fonts?.status === "loaded",
+        () =>
+          (document as unknown as { fonts?: { status?: string } }).fonts?.status ===
+          "loaded",
         { timeout: 30_000 }
       );
     } catch (err) {
-      // fonts API may not exist; ok to proceed
       void err;
     }
     await new Promise((r) => setTimeout(r, 250));
@@ -229,7 +221,10 @@ export async function POST(req: Request) {
       .toISOString()
       .slice(0, 10)}.pdf`;
 
-    return new NextResponse(pdf, {
+    // ✅ NextResponse expects BodyInit; convert Uint8Array -> ArrayBuffer slice
+    const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength);
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
