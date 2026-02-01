@@ -45,7 +45,8 @@ export function CommandBar({
     </div>
   );
 
-  const shortRun = mode === "demo" ? "demo" : runId ? runId.slice(0, 10) + "…" : "—";
+  const shortRun =
+    mode === "demo" ? "demo" : runId ? runId.slice(0, 10) + "…" : "—";
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-3 md:p-4">
@@ -65,7 +66,9 @@ export function CommandBar({
               )}
             />
             <div className="text-xs text-gray-700">{statusText}</div>
-            <div className="text-xs font-semibold text-gray-900">· {mode === "idle" ? "—" : mode}</div>
+            <div className="text-xs font-semibold text-gray-900">
+              · {mode === "idle" ? "—" : mode}
+            </div>
           </div>
 
           {pill("Run", shortRun)}
@@ -123,7 +126,10 @@ export function CommandBar({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(runId);
-                } catch {}
+                } catch (err) {
+                  // eslint-disable-next-line no-console
+                  console.debug("Clipboard write failed", err);
+                }
               }}
               className="rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 hover:bg-gray-50 inline-flex items-center gap-2"
               title="Copy run id"
