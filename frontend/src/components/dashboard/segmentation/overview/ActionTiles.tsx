@@ -2,7 +2,13 @@
 
 import React from "react";
 import clsx from "clsx";
-import { Sparkles, TrendingUp, ShieldAlert, Store, ChevronDown } from "lucide-react";
+import {
+  Sparkles,
+  TrendingUp,
+  ShieldAlert,
+  Store,
+  ChevronDown,
+} from "lucide-react";
 
 function Pill({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -16,12 +22,14 @@ function Pill({ icon, label }: { icon: React.ReactNode; label: string }) {
 function ColorNumbers({ text }: { text: string }) {
   if (!text) return null;
 
-  const parts = text.split(/(\$?\₹?\-?\d+(?:,\d{3})*(?:\.\d+)?%?)/g);
+  // Removed unnecessary escapes: \₹ and \-
+  const parts = text.split(/(\$?₹?-?\d+(?:,\d{3})*(?:\.\d+)?%?)/g);
 
   return (
     <>
       {parts.map((part, idx) => {
-        const isNumberLike = /^(\$?\₹?\-?\d+(?:,\d{3})*(?:\.\d+)?%?)$/.test(part);
+        // Removed unnecessary escapes: \₹ and \-
+        const isNumberLike = /^(\$?₹?-?\d+(?:,\d{3})*(?:\.\d+)?%?)$/.test(part);
 
         if (!isNumberLike) return <React.Fragment key={idx}>{part}</React.Fragment>;
 
@@ -110,7 +118,10 @@ export function ActionTilesSection({
             {open ? "Hide" : "View"}
             <ChevronDown
               size={16}
-              className={clsx("transition-transform", open ? "rotate-180" : "rotate-0")}
+              className={clsx(
+                "transition-transform",
+                open ? "rotate-180" : "rotate-0"
+              )}
             />
           </button>
         ) : null}
@@ -121,7 +132,11 @@ export function ActionTilesSection({
           {tiles.slice(0, 4).map((t, idx) => (
             <TileCard
               key={t.title}
-              pill={presets[idx]?.pill ?? <Pill icon={<Sparkles size={14} />} label="Action" />}
+              pill={
+                presets[idx]?.pill ?? (
+                  <Pill icon={<Sparkles size={14} />} label="Action" />
+                )
+              }
               title={t.bold}
               sub={t.sub}
             />
