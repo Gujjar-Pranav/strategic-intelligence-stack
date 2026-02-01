@@ -34,7 +34,7 @@ function ColorNumbers({ value }: { value: React.ReactNode }) {
 
   const text = String(value);
 
-  // ✅ removed useless escape
+  // split keeping numbers (no useless escapes)
   const parts = text.split(/(-?\d+(?:,\d{3})*(?:\.\d+)?)/g);
 
   return (
@@ -164,7 +164,11 @@ export default function HomePage() {
 
   /** Derived */
   const statusText =
-    mode === "demo" ? "Demo ready" : mode === "upload" ? "Upload ready" : "Ready";
+    mode === "demo"
+      ? "Demo ready"
+      : mode === "upload"
+      ? "Upload ready"
+      : "Ready";
 
   const runCardPrimary = mode === "demo" ? "demo" : runId ?? "—";
 
@@ -188,12 +192,71 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-6 py-8">
+        {/* Header */}
         <Header
           onLoadDemo={loadDemo}
           onFileSelected={(file) => uploadMut.mutate(file)}
         />
 
+        {/* ONE compact premium strip */}
         <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            {/* Left: compact inputs */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <MiniInput
+                label="TTL"
+                hint="auto delete"
+                value={ttl}
+                onChange={(v) => setTtl(v)}
+                type="text"
+              />
+              <MiniInput
+                label="Sample"
+                hint="preview"
+                value={sampleSize}
+                onChange={(v) => setSampleSize(Number(v || 0))}
+                type="number"
+              />
+            </div>
+
+            {/* Right: context pills */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Pill
+                label="Run"
+                value={runCardPrimary}
+                sub={mode === "idle" ? "mode: —" : `mode: ${mode}`}
+              />
+
+              <Pill
+                label="Revenue"
+                value={mode === "demo" ? "Total_Spend" : String(uploadRevenueProxy)}
+              />
+
+              <Pill
+                label="Status"
+                value={uploadMut.isPending ? "Uploading…" : statusText}
+                sub="Backend: 8000"
+                right={
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={[
+                        "inline-flex h-2.5 w-2.5 rounded-full",
+                        statusDotClass,
+                      ].join(" ")}
+                    />
+                    <span className="text-xs font-semibold text-gray-600">
+                      {uploadMut.isError
+                        ? "Error"
+                        : uploadMut.isPending
+                        ? "Working"
+                        : "OK"}
+                    </span>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+
           {uploadMut.isError && (
             <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               Upload failed:{" "}
@@ -204,6 +267,7 @@ export default function HomePage() {
           )}
         </div>
 
+        {/* Tabs */}
         <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
           <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
           <div className="mt-6 border-t border-gray-100 pt-6">
@@ -220,11 +284,15 @@ export default function HomePage() {
                 manifest={manifest}
               />
             )}
+
             {activeTab === "segments" && <SegmentsTab tables={tables} />}
+
             {activeTab === "tables" && <TablesTab tables={tables} />}
+
             {activeTab === "simulation" && (
               <Simulation mode={mode} tables={tables} />
             )}
+
             {activeTab === "exports" && (
               <ExportsTab
                 mode={mode}
