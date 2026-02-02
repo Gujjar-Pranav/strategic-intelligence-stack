@@ -202,7 +202,12 @@ function SparkBars3({
  * Decide which column gets micro-visual emphasis per variant
  * and how to render it.
  */
-function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any) {
+function cellRenderer(
+  variant: TableVariant,
+  col: string,
+  raw: unknown,
+  row: any
+) {
   const v = pickNumber(raw);
 
   // Helpers for number formatting
@@ -224,7 +229,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, pctVal))}>
+            <span
+              className={clsx("font-semibold", numColor(variant, col, pctVal))}
+            >
               {asPct(pctVal, 2)}
             </span>
             <span className="text-[11px] text-gray-500">share</span>
@@ -244,7 +251,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, pctVal))}>
+            <span
+              className={clsx("font-semibold", numColor(variant, col, pctVal))}
+            >
               {asPct(pctVal, 2)}
             </span>
             <span className="text-[11px] text-gray-500">customers</span>
@@ -267,7 +276,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, rate))}>
+            <span
+              className={clsx("font-semibold", numColor(variant, col, rate))}
+            >
               {asRatePct(rate, 1)}
             </span>
             <span className="text-[11px] text-gray-500">response</span>
@@ -287,7 +298,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
       return (
         <div className="min-w-[180px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, dd))}>
+            <span
+              className={clsx("font-semibold", numColor(variant, col, dd))}
+            >
               {asNum(dd, 3)}
             </span>
             <span className="text-[11px] text-gray-500">deal dep.</span>
@@ -346,7 +359,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
       return (
         <div className="min-w-[140px]">
           <div className="flex items-center justify-between gap-2">
-            <span className={clsx("font-semibold", numColor(variant, col, ratio))}>
+            <span
+              className={clsx("font-semibold", numColor(variant, col, ratio))}
+            >
               {asRatePct(ratio, 1)}
             </span>
             <span className="text-[11px] text-gray-500">share</span>
@@ -369,7 +384,9 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
 
       return (
         <div className="flex items-center justify-between gap-3 min-w-[260px]">
-          <span className="font-semibold text-gray-900">{String(raw ?? "")}</span>
+          <span className="font-semibold text-gray-900">
+            {String(raw ?? "")}
+          </span>
           <SparkBars3
             a={web}
             b={store}
@@ -398,7 +415,11 @@ function cellRenderer(variant: TableVariant, col: string, raw: unknown, row: any
 
   // ---- RFM table micro visuals
   if (variant === "rfm") {
-    if (col === "Recency_RFM" || col === "Frequency_RFM" || col === "Monetary_RFM") {
+    if (
+      col === "Recency_RFM" ||
+      col === "Frequency_RFM" ||
+      col === "Monetary_RFM"
+    ) {
       const n = pickNumber(raw);
       return (
         <span className={clsx("font-semibold", numColor(variant, col, n))}>
@@ -429,8 +450,12 @@ export function DataTable({
   rows: any[];
   variant?: TableVariant;
 }) {
-  const safeRows = Array.isArray(rows) ? rows : [];
-  const cols = Object.keys(safeRows[0] ?? {});
+  // ✅ memoized so deps are stable (fixes exhaustive-deps warning)
+  const safeRows = React.useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
+
+  // ✅ memoized as well (derived from safeRows)
+  const cols = React.useMemo(() => Object.keys(safeRows[0] ?? {}), [safeRows]);
+
   const [q, setQ] = React.useState("");
 
   // Keep behavior consistent: when there are no rows, search is effectively reset.
@@ -493,7 +518,9 @@ export function DataTable({
 
       return (
         <div className="flex items-center justify-between gap-3 min-w-[260px]">
-          <span className="font-semibold text-gray-900">{String(raw ?? "")}</span>
+          <span className="font-semibold text-gray-900">
+            {String(raw ?? "")}
+          </span>
           <SparkBars3
             a={norm(r)}
             b={norm(f)}
@@ -521,7 +548,10 @@ export function DataTable({
             Rows:{" "}
             <span className="font-semibold text-gray-900">{filtered.length}</span>
             {filtered.length !== safeRows.length ? (
-              <span className="text-gray-500"> (filtered from {safeRows.length})</span>
+              <span className="text-gray-500">
+                {" "}
+                (filtered from {safeRows.length})
+              </span>
             ) : null}
           </div>
         </div>
