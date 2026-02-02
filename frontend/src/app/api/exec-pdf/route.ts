@@ -48,8 +48,19 @@ function firstExisting(paths: string[]) {
  */
 function chromiumBinDir() {
   try {
-    const pkg = require.resolve("@sparticuz/chromium/package.json");
-    return path.join(path.dirname(pkg), "bin");
+    // Resolve the module entry file (works even if package.json isn't exported)
+    let p = require.resolve("@sparticuz/chromium");
+
+    // Walk up until we find the package root that contains /bin
+    // (limit steps to avoid infinite loops)
+    for (let i = 0; i < 10; i++) {
+      const dir = path.dirname(p);
+      const candidateBin = path.join(dir, "bin");
+      if (fs.existsSync(candidateBin)) return candidateBin;
+      p = dir;
+    }
+
+    return "";
   } catch (err) {
     void err;
     return "";
