@@ -222,7 +222,8 @@ export async function POST(req: Request) {
       .slice(0, 10)}.pdf`;
 
     // ✅ NextResponse expects BodyInit; convert Uint8Array -> ArrayBuffer slice
-    const body = new Blob([pdf], { type: "application/pdf" });
+    const buf = Buffer.from(pdf);
+    const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 
     return new NextResponse(body, {
       status: 200,
