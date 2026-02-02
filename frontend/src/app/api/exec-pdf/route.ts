@@ -222,7 +222,7 @@ export async function POST(req: Request) {
       .slice(0, 10)}.pdf`;
 
     // ✅ NextResponse expects BodyInit; convert Uint8Array -> ArrayBuffer slice
-    const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength);
+    const body = new Blob([pdf], { type: "application/pdf" });
 
     return new NextResponse(body, {
       status: 200,
@@ -232,6 +232,7 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
+
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to generate PDF";
     return new NextResponse(msg, { status: 500 });
