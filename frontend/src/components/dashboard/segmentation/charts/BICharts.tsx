@@ -47,6 +47,11 @@ function KpiRow({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-wrap items-center gap-1.5">{children}</div>;
 }
 
+type MqlLegacy = MediaQueryList & {
+  addListener?: (listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void) => void;
+  removeListener?: (listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void) => void;
+};
+
 function useIsPrintMode(printModeProp?: boolean) {
   const [isPrinting, setIsPrinting] = React.useState(false);
 
@@ -67,7 +72,7 @@ function useIsPrintMode(printModeProp?: boolean) {
 
     if (typeof window !== "undefined" && "matchMedia" in window) {
       // Many browsers support this; in some Safari versions addListener/removeListener is used.
-      const mql = window.matchMedia("print");
+      const mql = window.matchMedia("print") as MqlLegacy;
       const onChange = () => setIsPrinting(!!mql.matches);
       onChange();
 
@@ -75,11 +80,9 @@ function useIsPrintMode(printModeProp?: boolean) {
         mql.addEventListener("change", onChange);
         return () => mql.removeEventListener("change", onChange);
       } catch {
-        // Safari fallback
-        // @ts-ignore - Safari legacy API
-        mql.addListener(onChange);
-        // @ts-ignore - Safari legacy API
-        return () => mql.removeListener(onChange);
+        // Safari fallback (legacy API)
+        mql.addListener?.(onChange);
+        return () => mql.removeListener?.(onChange);
       }
     }
   }, [printModeProp]);
@@ -238,8 +241,8 @@ export function BICharts({
   const xTick = makeXTicker(isPrintMode);
   const tooltipProps = makeTooltipProps(isPrintMode);
 
-  // Tighter in PDF so 4 charts fit
-  const chartHeight: number | string = isPrintMode ? 180 : "100%";
+  // ✅ Recharts expects: number | `${number}%`
+  const chartHeight: number | `${number}%` = isPrintMode ? 180 : "100%";
   const commonBarProps = { isAnimationActive: !isPrintMode };
 
   const chartMargin = isPrintMode
@@ -381,10 +384,7 @@ export function BICharts({
         meta={
           <KpiRow>
             <KpiChip label="Web avg" value={`${avg(webVals).toFixed(1)}%`} />
-            <KpiChip
-              label="Store avg"
-              value={`${avg(storeVals).toFixed(1)}%`}
-            />
+            <KpiChip label="Store avg" value={`${avg(storeVals).toFixed(1)}%`} />
             <KpiChip
               label="Catalog avg"
               value={`${avg(catalogVals).toFixed(1)}%`}
