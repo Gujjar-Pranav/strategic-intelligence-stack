@@ -110,7 +110,7 @@ export function Overview({
 
           {/* RIGHT: spotlight + KPI strip */}
           <div className="lg:col-span-5 space-y-4">
-            <TopSegmentSpotlight tables={tables} defaultOpen />
+            <TopSegmentSpotlight tables={tables} />
 
             <div className="grid grid-cols-2 gap-3">
               <KpiCard label="Total customers" value={fmtNumber(demoTotalCustomers, 0)} />
