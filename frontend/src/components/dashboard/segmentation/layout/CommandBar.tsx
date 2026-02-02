@@ -127,7 +127,7 @@ export function CommandBar({
                 try {
                   await navigator.clipboard.writeText(runId);
                 } catch (err) {
-                  // eslint-disable-next-line no-console
+
                   console.debug("Clipboard write failed", err);
                 }
               }}
