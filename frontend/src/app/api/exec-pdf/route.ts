@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
+import path from "path";
+import { createRequire } from "module";
 
 import {
   EXEC_EXPORT_KEY,
@@ -11,6 +13,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const require = createRequire(import.meta.url);
 
 function safeStr(x: unknown) {
   return typeof x === "string" ? x : "";
@@ -38,6 +42,20 @@ function firstExisting(paths: string[]) {
   return "";
 }
 
+/**
+ * ✅ On Vercel, don't guess "/var/task/frontend/...".
+ * Resolve the real node_modules location for @sparticuz/chromium and pass its /bin dir.
+ */
+function chromiumBinDir() {
+  try {
+    const pkg = require.resolve("@sparticuz/chromium/package.json");
+    return path.join(path.dirname(pkg), "bin");
+  } catch (err) {
+    void err;
+    return "";
+  }
+}
+
 async function resolveChromeExecutablePath() {
   const envPath =
     process.env.CHROME_PATH ||
@@ -48,7 +66,9 @@ async function resolveChromeExecutablePath() {
 
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
-    const p = await chromium.executablePath();
+    // ✅ Tell sparticuz exactly where its brotli/bin assets are
+    const bin = chromiumBinDir();
+    const p = bin ? await chromium.executablePath(bin) : await chromium.executablePath();
     if (p && fs.existsSync(p)) return p;
   }
 
@@ -93,8 +113,7 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as ExecExportPayload;
 
-    const host =
-      req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
     const proto = req.headers.get("x-forwarded-proto") || "http";
     const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
 
@@ -121,8 +140,7 @@ export async function POST(req: Request) {
 
     const reportTitle = "Segmentation & Growth Recommendations";
     const confidentiality = "Confidential — For internal use only";
-    const dateLabel =
-      todayStamp(createdAt) || todayStamp(new Date().toISOString());
+    const dateLabel = todayStamp(createdAt) || todayStamp(new Date().toISOString());
 
     const executablePath = await resolveChromeExecutablePath();
     if (!executablePath) {
@@ -217,11 +235,8 @@ export async function POST(req: Request) {
 
     await browser.close();
 
-    const filename = `executive-summary-${new Date()
-      .toISOString()
-      .slice(0, 10)}.pdf`;
+    const filename = `executive-summary-${new Date().toISOString().slice(0, 10)}.pdf`;
 
-    // ✅ NextResponse expects BodyInit; convert Uint8Array -> ArrayBuffer slice
     const buf = Buffer.from(pdf);
     const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 
@@ -233,7 +248,6 @@ export async function POST(req: Request) {
         "Cache-Control": "no-store",
       },
     });
-
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to generate PDF";
     return new NextResponse(msg, { status: 500 });
