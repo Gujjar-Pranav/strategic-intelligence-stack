@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { fmtNumber, pct } from "../utils";
 
-function pickNumber(v: any) {
+function pickNumber(v: unknown) {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
@@ -50,20 +50,46 @@ function Chip({
 }
 
 export function SegmentsTab({ tables }: { tables: any }) {
-  const clusterSummary = Array.isArray(tables?.cluster_summary)
-    ? tables.cluster_summary
-    : [];
-  const persona = Array.isArray(tables?.persona_table) ? tables.persona_table : [];
+  // ✅ Memoize these slices so references are stable and hooks deps are correct
+  const clusterSummary = React.useMemo(
+    () =>
+      Array.isArray(tables?.cluster_summary) ? tables.cluster_summary : [],
+    [tables]
+  );
 
-  const revenue = Array.isArray(tables?.revenue_contribution_named)
-    ? tables.revenue_contribution_named
-    : [];
-  const promo = Array.isArray(tables?.promo_roi) ? tables.promo_roi : [];
-  const risk = Array.isArray(tables?.discount_risk) ? tables.discount_risk : [];
-  const channel = Array.isArray(tables?.channel_strategy)
-    ? tables.channel_strategy
-    : [];
-  const clv = Array.isArray(tables?.clv_summary) ? tables.clv_summary : [];
+  const persona = React.useMemo(
+    () => (Array.isArray(tables?.persona_table) ? tables.persona_table : []),
+    [tables]
+  );
+
+  const revenue = React.useMemo(
+    () =>
+      Array.isArray(tables?.revenue_contribution_named)
+        ? tables.revenue_contribution_named
+        : [],
+    [tables]
+  );
+
+  const promo = React.useMemo(
+    () => (Array.isArray(tables?.promo_roi) ? tables.promo_roi : []),
+    [tables]
+  );
+
+  const risk = React.useMemo(
+    () => (Array.isArray(tables?.discount_risk) ? tables.discount_risk : []),
+    [tables]
+  );
+
+  const channel = React.useMemo(
+    () =>
+      Array.isArray(tables?.channel_strategy) ? tables.channel_strategy : [],
+    [tables]
+  );
+
+  const clv = React.useMemo(
+    () => (Array.isArray(tables?.clv_summary) ? tables.clv_summary : []),
+    [tables]
+  );
 
   // Build stable cluster name list from persona first; fallback to cluster_summary
   const names = React.useMemo(() => {
@@ -74,10 +100,11 @@ export function SegmentsTab({ tables }: { tables: any }) {
 
   const [selected, setSelected] = React.useState<string>(names[0] ?? "");
 
+  // ✅ Fix exhaustive-deps: depend on names array (stable now), not names.join("|")
   React.useEffect(() => {
     if (!selected && names[0]) setSelected(names[0]);
     if (selected && !names.includes(selected)) setSelected(names[0] ?? "");
-  }, [names.join("|"), selected]);
+  }, [names, selected]);
 
   if (!names.length) {
     return (
@@ -207,7 +234,9 @@ export function SegmentsTab({ tables }: { tables: any }) {
                     <div
                       className={clsx(
                         "text-sm font-semibold",
-                        typeof rPct === "number" ? classRevenue : "text-gray-900"
+                        typeof rPct === "number"
+                          ? classRevenue
+                          : "text-gray-900"
                       )}
                     >
                       {typeof rPct === "number" ? fmtNumber(rPct, 2) + "%" : "—"}
@@ -221,7 +250,9 @@ export function SegmentsTab({ tables }: { tables: any }) {
                     <div
                       className={clsx(
                         "text-xs font-semibold",
-                        typeof cPct === "number" ? classCustomers : "text-gray-900"
+                        typeof cPct === "number"
+                          ? classCustomers
+                          : "text-gray-900"
                       )}
                     >
                       {typeof cPct === "number" ? fmtNumber(cPct, 2) + "%" : "—"}
@@ -266,16 +297,32 @@ export function SegmentsTab({ tables }: { tables: any }) {
                 icon={<TrendingUp size={14} />}
                 label="Revenue"
                 value={
-                  <span className={clsx(typeof revenuePct === "number" ? classRevenue : "text-gray-900")}>
-                    {typeof revenuePct === "number" ? `${fmtNumber(revenuePct, 2)}%` : "—"}
+                  <span
+                    className={clsx(
+                      typeof revenuePct === "number"
+                        ? classRevenue
+                        : "text-gray-900"
+                    )}
+                  >
+                    {typeof revenuePct === "number"
+                      ? `${fmtNumber(revenuePct, 2)}%`
+                      : "—"}
                   </span>
                 }
               />
               <Chip
                 label="Customers"
                 value={
-                  <span className={clsx(typeof customerPct === "number" ? classCustomers : "text-gray-900")}>
-                    {typeof customerPct === "number" ? `${fmtNumber(customerPct, 2)}%` : "—"}
+                  <span
+                    className={clsx(
+                      typeof customerPct === "number"
+                        ? classCustomers
+                        : "text-gray-900"
+                    )}
+                  >
+                    {typeof customerPct === "number"
+                      ? `${fmtNumber(customerPct, 2)}%`
+                      : "—"}
                   </span>
                 }
               />
@@ -298,14 +345,18 @@ export function SegmentsTab({ tables }: { tables: any }) {
             "Promo response",
             <span className={classPromo}>{pct(promoRate, 1)}</span>,
             <MiniBar
-              valuePct={typeof promoRate === "number" ? promoRate * 100 : undefined}
+              valuePct={
+                typeof promoRate === "number" ? promoRate * 100 : undefined
+              }
             />
           )}
           {scoreCard(
             "Discount addiction",
             <span className={classRisk}>{pct(riskRate, 1)}</span>,
             <MiniBar
-              valuePct={typeof riskRate === "number" ? riskRate * 100 : undefined}
+              valuePct={
+                typeof riskRate === "number" ? riskRate * 100 : undefined
+              }
             />,
             (riskRate ?? 0) >= 0.1
           )}
@@ -334,7 +385,9 @@ export function SegmentsTab({ tables }: { tables: any }) {
                 {pct(web, 1)}
               </div>
               <div className="mt-2">
-                <MiniBar valuePct={typeof web === "number" ? web * 100 : undefined} />
+                <MiniBar
+                  valuePct={typeof web === "number" ? web * 100 : undefined}
+                />
               </div>
             </div>
             <div className="rounded-xl border border-gray-200 p-3">
@@ -346,7 +399,9 @@ export function SegmentsTab({ tables }: { tables: any }) {
               </div>
               <div className="mt-2">
                 <MiniBar
-                  valuePct={typeof store === "number" ? store * 100 : undefined}
+                  valuePct={
+                    typeof store === "number" ? store * 100 : undefined
+                  }
                 />
               </div>
             </div>
@@ -359,7 +414,9 @@ export function SegmentsTab({ tables }: { tables: any }) {
               </div>
               <div className="mt-2">
                 <MiniBar
-                  valuePct={typeof catalog === "number" ? catalog * 100 : undefined}
+                  valuePct={
+                    typeof catalog === "number" ? catalog * 100 : undefined
+                  }
                 />
               </div>
             </div>
