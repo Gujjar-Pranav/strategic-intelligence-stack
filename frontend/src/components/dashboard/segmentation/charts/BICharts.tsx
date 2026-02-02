@@ -76,9 +76,9 @@ function useIsPrintMode(printModeProp?: boolean) {
         return () => mql.removeEventListener("change", onChange);
       } catch {
         // Safari fallback
-        // @ts-expect-error - Safari legacy API
+        // @ts-ignore  - Safari legacy API
         mql.addListener(onChange);
-        // @ts-expect-error - Safari legacy API
+        // @ts-ignore -error - Safari legacy API
         return () => mql.removeListener(onChange);
       }
     }
