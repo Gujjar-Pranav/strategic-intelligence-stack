@@ -125,9 +125,17 @@ export function ActionsAccordion({ tables }: { tables: any }) {
   if (!persona.length) return null;
 
   // global distributions for arrows/colors
-  const allR = rfm.map((x: any) => toNum(x?.Recency_RFM)).filter((x): x is number => typeof x === "number");
-  const allF = rfm.map((x: any) => toNum(x?.Frequency_RFM)).filter((x): x is number => typeof x === "number");
-  const allM = rfm.map((x: any) => toNum(x?.Monetary_RFM)).filter((x): x is number => typeof x === "number");
+  const allR = rfm
+    .map((row: unknown) => toNum((row as { Recency_RFM?: unknown } | null | undefined)?.Recency_RFM))
+    .filter((v: number | undefined): v is number => typeof v === "number");
+
+  const allF = rfm
+    .map((row: unknown) => toNum((row as { Frequency_RFM?: unknown } | null | undefined)?.Frequency_RFM))
+    .filter((v: number | undefined): v is number => typeof v === "number");
+
+  const allM = rfm
+    .map((row: unknown) => toNum((row as { Monetary_RFM?: unknown } | null | undefined)?.Monetary_RFM))
+    .filter((v: number | undefined): v is number => typeof v === "number");
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
