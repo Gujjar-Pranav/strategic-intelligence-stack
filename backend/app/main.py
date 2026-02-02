@@ -2,11 +2,13 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 import pandas as pd
 from io import BytesIO
 from pathlib import Path
+import os
+
 from backend.app.core.pipeline import build_features
 from backend.app.core.insights import compute_business_insights
-from backend.app.schemas import SimulationRequest,RunTuningParams
+from backend.app.schemas import SimulationRequest, RunTuningParams
 from backend.app.core.simulation import run_budget_simulation
-from backend.app.core.clustering import run_kmeans_with_best_scaler,FINAL_FEATURES
+from backend.app.core.clustering import run_kmeans_with_best_scaler, FINAL_FEATURES
 from backend.app.core.personas import attach_cluster_names, compute_cluster_tables
 from backend.app.core.visuals import build_normalized_heatmap, build_pca_payload, build_cluster_bar_data
 from backend.app.core.personas import CLUSTER_NAMES
@@ -18,31 +20,40 @@ from backend.app.core.runs import RUNS_DIR
 from fastapi.responses import FileResponse
 from backend.app.core.recompute import recompute_manifest_for_run
 from backend.app.core.validation import detect_and_validate, apply_renames
+
 from fastapi.middleware.cors import CORSMiddleware
-
-
-
-
-
-
-
 
 
 app = FastAPI(title="Customer Segmentation API", version="0.2.0")
 
+# --- CORS ---
+# Set this on Render:
+# CORS_ORIGINS=https://<your-vercel-domain>,https://<your-vercel-preview-domain>
+cors_env = os.getenv("CORS_ORIGINS", "")
+cors_origins = [o.strip() for o in cors_env.split(",") if o.strip()]
+
+# Always allow local dev
+cors_origins += [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Optional: allow all vercel previews for your project (safe + convenient)
+# If you want strict-only, remove this and rely only on CORS_ORIGINS.
+cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 ALLOWED_EXTENSIONS = {".csv", ".xlsx"}
 MAX_FILE_MB = 25
+
 
 
 @app.get("/health")
