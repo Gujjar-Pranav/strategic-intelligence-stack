@@ -1,6 +1,6 @@
+// src/app/api/exec-pdf/route.ts
 import { NextResponse } from "next/server";
-import puppeteer from "puppeteer-core";
-import type { Browser } from "puppeteer-core";
+import puppeteer, { type Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
@@ -8,7 +8,7 @@ import { createRequire } from "module";
 
 import {
   EXEC_EXPORT_KEY,
-  ExecExportPayload,
+  type ExecExportPayload,
 } from "@/components/dashboard/segmentation/exports/exportPayload";
 
 export const runtime = "nodejs";
@@ -31,8 +31,8 @@ function todayStamp(isoLike?: string) {
   });
 }
 
-function firstExisting(paths: string[]) {
-  for (const p of paths) {
+function firstExisting(pathsToTry: string[]) {
+  for (const p of pathsToTry) {
     try {
       if (p && fs.existsSync(p)) return p;
     } catch {
@@ -43,25 +43,26 @@ function firstExisting(paths: string[]) {
 }
 
 /**
- * On Vercel, resolve the real node_modules location for @sparticuz/chromium
- * and pass its /bin dir to executablePath().
+ * Sometimes Vercel bundling can omit chromium's auxiliary files unless traced.
+ * We try plain chromium.executablePath() first, then fallback to passing a resolved bin dir.
  */
-function chromiumBinDir() {
+function chromiumBinDir(): string {
   try {
     let p = require.resolve("@sparticuz/chromium");
-    for (let i = 0; i < 10; i++) {
+
+    for (let i = 0; i < 12; i++) {
       const dir = path.dirname(p);
       const candidateBin = path.join(dir, "bin");
       if (fs.existsSync(candidateBin)) return candidateBin;
       p = dir;
     }
-    return "";
   } catch {
-    return "";
+    // ignore
   }
+  return "";
 }
 
-async function resolveChromeExecutablePath() {
+async function resolveChromeExecutablePath(): Promise<string> {
   const envPath =
     process.env.CHROME_PATH ||
     process.env.PUPPETEER_EXECUTABLE_PATH ||
@@ -71,12 +72,24 @@ async function resolveChromeExecutablePath() {
 
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
-    const bin = chromiumBinDir();
-    const p = bin
-      ? await chromium.executablePath(bin)
-      : await chromium.executablePath();
+    // Preferred
+    try {
+      const p = await chromium.executablePath();
+      if (p && fs.existsSync(p)) return p;
+    } catch {
+      // fallback below
+    }
 
-    if (p && fs.existsSync(p)) return p;
+    // Fallback (when chromium needs explicit bin dir)
+    const bin = chromiumBinDir();
+    if (bin) {
+      try {
+        const p = await chromium.executablePath(bin);
+        if (p && fs.existsSync(p)) return p;
+      } catch {
+        // ignore
+      }
+    }
   }
 
   const platform = process.platform;
@@ -116,15 +129,13 @@ async function resolveChromeExecutablePath() {
   ]);
 }
 
-function resolveBaseUrl(req: Request) {
-  // Most reliable on Vercel (works for preview + prod)
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
+function computeBaseUrl(req: Request): string {
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const xfProto = req.headers.get("x-forwarded-proto");
 
-  // Fallback for other hosts / local
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-  const proto = req.headers.get("x-forwarded-proto") || "http";
+  // IMPORTANT: on Vercel, default MUST be https (http often fails)
+  const proto = xfProto || (process.env.VERCEL ? "https" : "http");
+
   return host ? `${proto}://${host}` : "http://localhost:3000";
 }
 
@@ -133,14 +144,14 @@ export async function POST(req: Request) {
 
   try {
     const payload = (await req.json()) as ExecExportPayload;
-    const baseUrl = resolveBaseUrl(req);
+
+    const baseUrl = computeBaseUrl(req);
 
     const manifest = (payload as { manifest?: unknown })?.manifest as
       | Record<string, unknown>
       | undefined;
 
-    const run =
-      (manifest?.["run"] as Record<string, unknown> | undefined) ?? undefined;
+    const run = (manifest?.["run"] as Record<string, unknown> | undefined) ?? undefined;
 
     const createdAt =
       (run?.["created_at_utc"] as string | undefined) ||
@@ -158,8 +169,7 @@ export async function POST(req: Request) {
 
     const reportTitle = "Segmentation & Growth Recommendations";
     const confidentiality = "Confidential — For internal use only";
-    const dateLabel =
-      todayStamp(createdAt) || todayStamp(new Date().toISOString());
+    const dateLabel = todayStamp(createdAt) || todayStamp(new Date().toISOString());
 
     const executablePath = await resolveChromeExecutablePath();
     if (!executablePath) {
@@ -173,8 +183,8 @@ export async function POST(req: Request) {
 
     browser = await puppeteer.launch({
       executablePath,
-      headless: isVercel ? chromium.headless : true,
-      ignoreHTTPSErrors: true,
+      // ✅ do not use chromium.headless (not in typings). This works in puppeteer v24+
+      headless: "new",
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
@@ -188,7 +198,7 @@ export async function POST(req: Request) {
 
     const page = await browser.newPage();
 
-    // Put payload into sessionStorage before the app scripts run
+    // Put payload into sessionStorage before any scripts execute
     const raw = JSON.stringify(payload);
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
@@ -204,25 +214,19 @@ export async function POST(req: Request) {
 
     const url = `${baseUrl}/export/executive?print=1`;
 
-    const resp = await page.goto(url, {
+    // ✅ networkidle0 can hang on Vercel sometimes; domcontentloaded is enough
+    await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 120_000,
+      timeout: 60_000,
     });
 
-    if (!resp) {
-      throw new Error(`Failed to load ${url} (no response)`);
-    }
-    if (!resp.ok()) {
-      throw new Error(`Failed to load ${url} (status ${resp.status()})`);
-    }
-
-    // Wait for root + charts to exist (same as before)
+    // Wait for the React page to hydrate + render
     await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
     await page.waitForSelector(".exec-print-charts .recharts-surface", {
       timeout: 60_000,
     });
 
-    // Fonts (best effort)
+    // Fonts (best-effort)
     try {
       await page.waitForFunction(
         () =>
@@ -234,7 +238,7 @@ export async function POST(req: Request) {
       // ignore
     }
 
-    // small settle time for charts/layout
+    // small settle
     await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
@@ -268,9 +272,10 @@ export async function POST(req: Request) {
       },
     });
 
-    const filename = `executive-summary-${new Date()
-      .toISOString()
-      .slice(0, 10)}.pdf`;
+    await browser.close();
+    browser = null;
+
+    const filename = `executive-summary-${new Date().toISOString().slice(0, 10)}.pdf`;
 
     const buf = Buffer.from(pdf);
     const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -284,13 +289,12 @@ export async function POST(req: Request) {
       },
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Failed to generate PDF";
-    return new NextResponse(msg, { status: 500 });
-  } finally {
     try {
       await browser?.close();
     } catch {
       // ignore
     }
+    const msg = e instanceof Error ? e.message : "Failed to generate PDF";
+    return new NextResponse(msg, { status: 500 });
   }
 }
