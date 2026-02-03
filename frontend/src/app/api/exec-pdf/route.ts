@@ -1,4 +1,4 @@
-// src/app/api/exec-pdf/route.ts
+// app/api/exec-pdf/route.ts
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
 import type { Browser } from "puppeteer-core";
@@ -44,13 +44,13 @@ function firstExisting(paths: string[]) {
 }
 
 /**
- * On Vercel, resolve @sparticuz/chromium module root and try to locate its /bin directory.
- * (This avoids hardcoding /var/task/... paths.)
+ * Resolve the real installed location of @sparticuz/chromium and find its /bin directory.
+ * This avoids hardcoding /var/task/... paths.
  */
 function chromiumBinDir() {
   try {
     let p = require.resolve("@sparticuz/chromium");
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       const dir = path.dirname(p);
       const candidateBin = path.join(dir, "bin");
       if (fs.existsSync(candidateBin)) return candidateBin;
@@ -73,7 +73,9 @@ async function resolveChromeExecutablePath() {
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
     const bin = chromiumBinDir();
-    const p = bin ? await chromium.executablePath(bin) : await chromium.executablePath();
+    const p = bin
+      ? await chromium.executablePath(bin)
+      : await chromium.executablePath();
     if (p && fs.existsSync(p)) return p;
   }
 
@@ -120,6 +122,7 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as ExecExportPayload;
 
+    // IMPORTANT: build the absolute URL to your own deployment
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
     const proto = req.headers.get("x-forwarded-proto") || "http";
     const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
@@ -138,7 +141,8 @@ export async function POST(req: Request) {
       (manifest?.["created_at"] as string | undefined);
 
     const dataset =
-      (manifest?.["dataset"] as Record<string, unknown> | undefined) ?? undefined;
+      (manifest?.["dataset"] as Record<string, unknown> | undefined) ??
+      undefined;
 
     const clientLabel =
       safeStr(dataset?.["client_name"]) ||
@@ -162,7 +166,7 @@ export async function POST(req: Request) {
 
     browser = await puppeteer.launch({
       executablePath,
-      headless: true,
+      headless: true, // ✅ compatible with your current puppeteer-core typings
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
@@ -175,12 +179,27 @@ export async function POST(req: Request) {
     });
 
     const page = await browser.newPage();
-    page.setDefaultTimeout(90_000);
 
-    // ✅ Force print CSS during rendering so chart layout matches PDF
-    await page.emulateMediaType("print");
+    /**
+     * ✅ CRITICAL FIX:
+     * Forward cookies (auth/session) from the incoming request to Puppeteer.
+     * Without this, /export/executive can return 401 in production -> selector never appears.
+     */
+    const cookieHeader = req.headers.get("cookie") || "";
+    if (cookieHeader) {
+      await page.setExtraHTTPHeaders({ cookie: cookieHeader });
+    }
 
-    // Put payload into sessionStorage BEFORE app scripts run
+    // Also forward Authorization if you ever use it (safe no-op if absent)
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+      await page.setExtraHTTPHeaders({
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+        authorization: authHeader,
+      });
+    }
+
+    // Put payload into sessionStorage before any scripts run
     const raw = JSON.stringify(payload);
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
@@ -194,44 +213,25 @@ export async function POST(req: Request) {
       raw
     );
 
-    const url = `${baseUrl}/export/executive?print=1`;
-
-    const resp = await page.goto(url, { waitUntil: "domcontentloaded" });
-    const status = resp?.status() ?? 0;
-    if (status >= 400) {
-      throw new Error(`Failed to load export page (${status}) at ${url}`);
-    }
-
-    // Root must exist (SSR render should include it)
-    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
-
-    // ✅ Recharts in headless/print sometimes computes -1 height unless container has height.
-    // Inject a small override ONLY for PDF generation (no change to actual UI).
-    await page.addStyleTag({
-      content: `
-        .exec-print-charts { min-height: 680px !important; }
-        .exec-print-charts .recharts-responsive-container {
-          min-height: 680px !important;
-          width: 100% !important;
-        }
-      `,
+    // Navigate to the print page
+    await page.goto(`${baseUrl}/export/executive?print=1`, {
+      waitUntil: ["domcontentloaded", "networkidle0"],
     });
 
-    // Best-effort: wait for charts, but don't hard-fail the export
-    try {
-      await page.waitForSelector(".exec-print-charts .recharts-surface", {
-        timeout: 45_000,
-      });
-    } catch {
-      // continue (PDF still generated; charts may be blank if the client payload is tiny)
-    }
+    // Wait for the root to exist (should appear even while "Preparing...")
+    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
 
-    // Best-effort: wait for fonts
+    // Charts render later; wait for at least one svg surface
+    await page.waitForSelector(".exec-print-charts .recharts-surface", {
+      timeout: 60_000,
+    });
+
+    // Wait for fonts if supported
     try {
       await page.waitForFunction(
         () =>
-          (document as unknown as { fonts?: { status?: string } }).fonts?.status ===
-          "loaded",
+          (document as unknown as { fonts?: { status?: string } }).fonts
+            ?.status === "loaded",
         { timeout: 30_000 }
       );
     } catch {
@@ -271,10 +271,15 @@ export async function POST(req: Request) {
       },
     });
 
-    const filename = `executive-summary-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = `executive-summary-${new Date()
+      .toISOString()
+      .slice(0, 10)}.pdf`;
 
     const buf = Buffer.from(pdf);
-    const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const body = buf.buffer.slice(
+      buf.byteOffset,
+      buf.byteOffset + buf.byteLength
+    );
 
     return new NextResponse(body, {
       status: 200,
