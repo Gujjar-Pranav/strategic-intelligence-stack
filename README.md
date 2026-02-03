@@ -1,351 +1,187 @@
 Strategic Intelligence Stack
+A Production-Grade Customer Segmentation & Decision Intelligence System
+1. Executive Summary
 
-A Production-Grade Customer Segmentation & Decision Intelligence Platform
+Modern organizations collect large volumes of customer data but struggle to convert it into repeatable, actionable decisions. Traditional segmentation projects often stop at cluster creation, leaving downstream teams without clarity on what to do next.
 
-What This Project Is
+Strategic Intelligence Stack is a production-grade system designed to operationalize customer segmentation into a continuous decision intelligence workflow. The platform integrates machine learning pipelines, business logic, simulation engines, and executive-ready visualization into a single deployable system.
 
-Strategic Intelligence Stack is a real-world, production-grade customer segmentation and decision intelligence system designed to bridge the gap between machine learning outputs and actual business decisions.
+This document describes the architecture, design decisions, and operational model behind the system.
 
-It is not a toy dashboard, a static ML notebook, or a one-off demo.
+2. System Objectives
 
-This system is built to:
+The system is designed to:
 
-Accept real business datasets
+Convert raw customer data into stable, interpretable segments
 
-Generate repeatable customer segmentation
+Generate decision-oriented insights per segment
 
-Convert clusters into actionable insights and personas
+Support scenario simulations without retraining models
 
-Allow what-if business simulations
+Enable reproducible analytics runs
 
-Deliver executive-ready outputs through a web interface
+Deliver outputs consumable by both analysts and executives
 
-The platform is dataset-driven and reusable — the same system can be applied to different clients, industries, and datasets without code changes.
+3. High-Level Architecture (Pointwise)
+Data Flow
 
-Why This Exists (Problem Statement)
+Customer dataset is ingested via API (demo or upload)
 
-Most customer segmentation projects fail after model training because:
+Dataset is validated and normalized
 
-Clusters are not interpretable by business teams
+Segmentation pipeline generates clusters
 
-Insights are disconnected from decisions
+Cluster-level analytics and personas are computed
 
-Results are static and non-reproducible
+Results are persisted under a unique run identifier
 
-Outputs are hard to operationalize
+Frontend consumes run data via REST APIs
 
-This project solves that by treating segmentation as a product, not a notebook.
+Users interact through dashboards, simulations, and exports
 
-Core Capabilities
-1. Customer Segmentation (ML Pipeline)
+Component Responsibilities
 
-Feature validation and preprocessing
+Frontend (Next.js / Vercel)
 
-Clustering-based segmentation
+Visualization of segmentation outputs
 
-Persisted segmentation runs
-
-Deterministic re-runs using run IDs
-
-Production-ready model storage
-
-2. Business Insight Generation
-
-Revenue contribution vs customer share
-
-Promotion responsiveness analysis
-
-Discount addiction risk detection
-
-Channel preference profiling
-
-Cluster-level persona synthesis
-
-3. Interactive Analytics Dashboard
-
-Executive overview
-
-Segment comparisons
-
-Interactive charts and tables
-
-Designed for decision-makers, not analysts
-
-Works with demo data or uploaded datasets
-
-4. Simulation Engine
-
-What-if simulations on strategy levers
-
-Cluster-aware simulation logic
-
-Immediate feedback without retraining models
-
-Designed for planning, not experimentation only
-
-5. Export & Reporting
-
-Executive-ready PDF exports
-
-Print-optimized layouts
-
-Deterministic reports tied to a run state
-
-Suitable for leadership reviews and client delivery
-
-System Architecture (Pointwise)
-End-to-End Flow
-
-User opens the web dashboard (Vercel-hosted frontend)
-
-User selects:
-
-Demo mode (preloaded dataset)
-
-Upload mode (custom business data)
-
-Frontend sends typed REST requests to the backend
-
-Backend:
-
-Validates dataset
-
-Runs segmentation pipeline
-
-Generates insights and personas
-
-Stores outputs under a unique run ID
-
-Frontend renders dashboards from run results
-
-User runs simulations or exports reports
-
-Architectural Responsibilities
-
-Frontend
-
-Visualization and interaction
+Simulation parameter control
 
 State management per run
 
-Simulation controls
+Export orchestration (PDF generation)
 
-Export orchestration
+Backend (FastAPI / Render)
 
-Backend
+Segmentation and ML pipeline execution
 
-Machine learning pipeline
-
-Insight and persona generation
+Insight computation and aggregation
 
 Simulation engine
 
 Run lifecycle management
 
-Storage
+4. Segmentation Pipeline Design
 
-Persisted run artifacts
+The segmentation pipeline is structured to be deterministic and reproducible.
 
-Model bundles
+Pipeline Stages
 
-Reproducible outputs
+Feature validation and schema enforcement
 
-Technology Stack
-Frontend
+Data preprocessing and normalization
 
-Next.js (App Router)
+Clustering execution
 
-React + TypeScript
+Cluster labeling and metadata enrichment
 
-Recharts for analytics visualization
+Artifact persistence
 
-Tailwind CSS for design system
+Each segmentation run produces:
 
-Puppeteer for server-side PDF generation
+Cluster assignments
 
-Deployed on Vercel
+Feature statistics
 
-Backend
+Run manifest
 
-Python 3
+Model artifacts
 
-FastAPI
+5. Insight & Persona Generation
 
-Pydantic for schema validation
+Segmentation outputs are transformed into business insights through domain-specific logic.
 
-Scikit-learn for ML pipelines
+Insight Categories
 
-Joblib for model persistence
+Revenue contribution vs customer share
 
-Deployed on Render
+Promotion response likelihood
 
-Frontend Structure (Pointer Format)
+Discount dependency risk
 
-Location: src/components/dashboard
+Channel preference mix
 
-charts
+Segment-level behavioral personas
 
-BICharts.tsx – analytical visualizations
+These insights are designed to be:
 
-ChartCard.tsx – reusable chart container
+Comparable across runs
 
-exports
+Interpretable by non-technical stakeholders
 
-ExportPdfButton.tsx – export trigger
+Directly actionable
 
-ExportsTab.tsx – export workflow
+6. Simulation Engine
 
-exportPayload.ts – structured export state
+The simulation engine allows users to explore what-if scenarios without retraining models.
 
-overview
+Simulation Characteristics
 
-Overview.tsx – executive summary
+Operates on persisted segmentation results
 
-DecisionBanner.tsx – key decisions
+Applies business-rule transformations
 
-SegmentCompare.tsx – cluster comparison
+Returns immediate feedback
 
-TopSegmentSpotlight.tsx – best segments
+Enables strategic planning use cases
 
-simulation
+This separation ensures model stability while enabling fast experimentation.
 
-Simulation.tsx – what-if analysis
+7. Visualization & Interaction Layer
 
-SliderRow.tsx – simulation inputs
+The frontend is optimized for decision workflows, not raw analytics.
 
-simulationAdapters.ts – backend mappings
+Key design principles:
 
-tables
+Executive-first layouts
 
-DataTable.tsx – reusable tables
+Progressive disclosure of complexity
 
-SegmentsTab.tsx – segmentation tables
+Print-optimized rendering for exports
 
-PersonasTab.tsx – personas
+Dataset-agnostic component architecture
 
-TablesTab.tsx – orchestration
+8. Reproducibility & Run Management
 
-layout
+Each segmentation execution is assigned a unique run ID.
 
-Header.tsx – global header
+This enables:
 
-Tabs.tsx – navigation
+Deterministic re-computation
 
-SummaryCards.tsx – KPIs
+Auditability of results
 
-shared
+Historical comparisons
 
-constants.ts
+Safe experimentation without overwriting results
 
-types.ts
+9. Deployment & Operations
 
-utils.ts
+Frontend deployed on Vercel with CI validation
 
-Backend Structure (Pointer Format)
+Backend deployed on Render
 
-Location: backend/app
+Stateless APIs with persisted artifacts
 
-core
+Environment-agnostic configuration
 
-clustering.py – segmentation logic
+10. Intended Applications
 
-pipeline.py – orchestration
+Customer lifecycle optimization
 
-insights.py – business insights
+Marketing strategy planning
 
-personas.py – persona generation
+Pricing and promotion analysis
 
-simulation.py – simulation engine
+Consulting deliverables
 
-simulation_clusters.py – cluster logic
+Executive decision support
 
-recompute.py – reruns
+11. Conclusion
 
-train_production.py – model training
+Strategic Intelligence Stack demonstrates how customer segmentation can be elevated from an analytical task into a decision intelligence system. By combining machine learning, business logic, simulation, and visualization, the platform enables organizations to act on insights—not just observe them.
 
-validation.py – data validation
-
-ttl.py – run lifecycle
-
-model_store.py – model registry
-
-visuals.py – chart-ready outputs
-
-storage
-
-runs/<run_id>/ – persisted artifacts
-
-data
-
-sample datasets
-
-models
-
-persisted model bundles
-
-API Layer
-
-main.py – FastAPI entrypoint
-
-schemas.py – request/response models
-
-API Access
-
-Live API:
-https://strategic-intelligence-stack.onrender.com
-
-Swagger Docs:
-https://strategic-intelligence-stack.onrender.com/docs
-
-The API supports:
-
-Health checks
-
-Dataset uploads
-
-Demo and production runs
-
-Cluster insights
-
-Simulations
-
-Run manifests and exports
-
-Design Principles
-
-Production-first (not notebook-first)
-
-Reproducibility over randomness
-
-Business interpretability over raw metrics
-
-Separation of concerns
-
-Reusable across clients and datasets
-
-Intended Use Cases
-
-Marketing strategy optimization
-
-Customer lifecycle management
-
-Promotion and pricing planning
-
-Consulting and analytics delivery
-
-Executive decision support systems
-
-Deployment Status
-
-Frontend CI validated and deployed
-
-Backend live with documented APIs
-
-End-to-end workflow operational
-
-Ready for real-world datasets
 
 Author
-
 Pranav Gujjar
 ML Engineer
