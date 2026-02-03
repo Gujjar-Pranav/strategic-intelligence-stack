@@ -1,6 +1,7 @@
 // src/app/api/exec-pdf/route.ts
 import { NextResponse } from "next/server";
-import puppeteer, { type Browser } from "puppeteer-core";
+import puppeteer from "puppeteer-core";
+import type { Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
@@ -8,7 +9,7 @@ import { createRequire } from "module";
 
 import {
   EXEC_EXPORT_KEY,
-  type ExecExportPayload,
+  ExecExportPayload,
 } from "@/components/dashboard/segmentation/exports/exportPayload";
 
 export const runtime = "nodejs";
@@ -43,13 +44,13 @@ function firstExisting(paths: string[]) {
 }
 
 /**
- * Vercel: resolve the real node_modules location for @sparticuz/chromium
- * and return its bin directory (contains brotli files).
+ * On Vercel, resolve @sparticuz/chromium module root and try to locate its /bin directory.
+ * (This avoids hardcoding /var/task/... paths.)
  */
 function chromiumBinDir() {
   try {
     let p = require.resolve("@sparticuz/chromium");
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 10; i++) {
       const dir = path.dirname(p);
       const candidateBin = path.join(dir, "bin");
       if (fs.existsSync(candidateBin)) return candidateBin;
@@ -72,9 +73,7 @@ async function resolveChromeExecutablePath() {
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
     const bin = chromiumBinDir();
-    const p = bin
-      ? await chromium.executablePath(bin)
-      : await chromium.executablePath();
+    const p = bin ? await chromium.executablePath(bin) : await chromium.executablePath();
     if (p && fs.existsSync(p)) return p;
   }
 
@@ -148,7 +147,8 @@ export async function POST(req: Request) {
 
     const reportTitle = "Segmentation & Growth Recommendations";
     const confidentiality = "Confidential — For internal use only";
-    const dateLabel = todayStamp(createdAt) || todayStamp(new Date().toISOString());
+    const dateLabel =
+      todayStamp(createdAt) || todayStamp(new Date().toISOString());
 
     const executablePath = await resolveChromeExecutablePath();
     if (!executablePath) {
@@ -175,23 +175,17 @@ export async function POST(req: Request) {
     });
 
     const page = await browser.newPage();
+    page.setDefaultTimeout(90_000);
 
-    // IMPORTANT: apply print CSS during render, not only during page.pdf()
+    // ✅ Force print CSS during rendering so chart layout matches PDF
     await page.emulateMediaType("print");
 
+    // Put payload into sessionStorage BEFORE app scripts run
     const raw = JSON.stringify(payload);
-
-    // Put payload in sessionStorage before app scripts run
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
-        } catch {
-          // ignore
-        }
-        // also set a global fallback (harmless for local)
-        try {
-          (window as any).__EXEC_EXPORT_PAYLOAD__ = v;
         } catch {
           // ignore
         }
@@ -200,34 +194,51 @@ export async function POST(req: Request) {
       raw
     );
 
-    await page.goto(`${baseUrl}/export/executive?print=1`, {
-      waitUntil: "domcontentloaded",
-    });
+    const url = `${baseUrl}/export/executive?print=1`;
 
-    // Root must exist
-    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
-
-    // Charts: try hard, but don’t hard-fail forever (Recharts can be finicky on server)
-    try {
-      await page.waitForSelector(".exec-print-charts .recharts-surface", {
-        timeout: 60_000,
-      });
-    } catch {
-      // continue — PDF is still generated (charts may be missing if they truly failed)
+    const resp = await page.goto(url, { waitUntil: "domcontentloaded" });
+    const status = resp?.status() ?? 0;
+    if (status >= 400) {
+      throw new Error(`Failed to load export page (${status}) at ${url}`);
     }
 
-    // fonts
+    // Root must exist (SSR render should include it)
+    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
+
+    // ✅ Recharts in headless/print sometimes computes -1 height unless container has height.
+    // Inject a small override ONLY for PDF generation (no change to actual UI).
+    await page.addStyleTag({
+      content: `
+        .exec-print-charts { min-height: 680px !important; }
+        .exec-print-charts .recharts-responsive-container {
+          min-height: 680px !important;
+          width: 100% !important;
+        }
+      `,
+    });
+
+    // Best-effort: wait for charts, but don't hard-fail the export
+    try {
+      await page.waitForSelector(".exec-print-charts .recharts-surface", {
+        timeout: 45_000,
+      });
+    } catch {
+      // continue (PDF still generated; charts may be blank if the client payload is tiny)
+    }
+
+    // Best-effort: wait for fonts
     try {
       await page.waitForFunction(
-        () => (document as any).fonts?.status === "loaded",
+        () =>
+          (document as unknown as { fonts?: { status?: string } }).fonts?.status ===
+          "loaded",
         { timeout: 30_000 }
       );
     } catch {
       // ignore
     }
 
-    // small settle
-    await new Promise((r) => setTimeout(r, 350));
+    await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
       <div style="width:100%; padding:0 14mm; font-size:10px; color:#475569;">
