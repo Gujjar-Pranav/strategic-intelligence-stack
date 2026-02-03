@@ -1,6 +1,7 @@
 // app/api/exec-pdf/route.ts
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
+import type { Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
@@ -133,7 +134,7 @@ function resolveBaseUrl(req: Request) {
 }
 
 export async function POST(req: Request) {
-  let browser: puppeteer.Browser | null = null;
+  let browser: Browser | null = null;
 
   try {
     const payload = (await req.json()) as ExecExportPayload;
