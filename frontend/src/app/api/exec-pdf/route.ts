@@ -1,4 +1,3 @@
-// app/api/exec-pdf/route.ts
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
 import type { Browser } from "puppeteer-core";
@@ -44,15 +43,12 @@ function firstExisting(paths: string[]) {
 }
 
 /**
- * ✅ On Vercel, don't guess "/var/task/frontend/...".
- * Resolve the real node_modules location for @sparticuz/chromium and pass its /bin dir.
+ * On Vercel, resolve the real node_modules location for @sparticuz/chromium
+ * and pass its /bin dir to executablePath().
  */
 function chromiumBinDir() {
   try {
-    // Resolve the module entry file (works even if package.json isn't exported)
     let p = require.resolve("@sparticuz/chromium");
-
-    // Walk up until we find a folder containing /bin
     for (let i = 0; i < 10; i++) {
       const dir = path.dirname(p);
       const candidateBin = path.join(dir, "bin");
@@ -75,11 +71,11 @@ async function resolveChromeExecutablePath() {
 
   const isVercel = !!process.env.VERCEL;
   if (isVercel) {
-    // ✅ Tell sparticuz exactly where its brotli/bin assets are
     const bin = chromiumBinDir();
     const p = bin
       ? await chromium.executablePath(bin)
       : await chromium.executablePath();
+
     if (p && fs.existsSync(p)) return p;
   }
 
@@ -120,14 +116,13 @@ async function resolveChromeExecutablePath() {
   ]);
 }
 
-/**
- * ✅ Fix for Vercel: always prefer VERCEL_URL when present.
- * Header-based host/proto can be unreliable in serverless.
- */
 function resolveBaseUrl(req: Request) {
-  const vercelUrl = process.env.VERCEL_URL;
-  if (vercelUrl) return `https://${vercelUrl}`;
+  // Most reliable on Vercel (works for preview + prod)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
 
+  // Fallback for other hosts / local
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const proto = req.headers.get("x-forwarded-proto") || "http";
   return host ? `${proto}://${host}` : "http://localhost:3000";
@@ -138,7 +133,6 @@ export async function POST(req: Request) {
 
   try {
     const payload = (await req.json()) as ExecExportPayload;
-
     const baseUrl = resolveBaseUrl(req);
 
     const manifest = (payload as { manifest?: unknown })?.manifest as
@@ -179,7 +173,8 @@ export async function POST(req: Request) {
 
     browser = await puppeteer.launch({
       executablePath,
-      headless: true,
+      headless: isVercel ? chromium.headless : true,
+      ignoreHTTPSErrors: true,
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
@@ -193,7 +188,7 @@ export async function POST(req: Request) {
 
     const page = await browser.newPage();
 
-    // Put payload in sessionStorage for /export/executive page
+    // Put payload into sessionStorage before the app scripts run
     const raw = JSON.stringify(payload);
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
@@ -207,34 +202,27 @@ export async function POST(req: Request) {
       raw
     );
 
-    // ✅ Safer URL build (handles trailing slashes etc.)
-    const targetUrl = new URL("/export/executive?print=1", baseUrl).toString();
+    const url = `${baseUrl}/export/executive?print=1`;
 
-    const resp = await page.goto(targetUrl, {
+    const resp = await page.goto(url, {
       waitUntil: "domcontentloaded",
+      timeout: 120_000,
     });
-    if (!resp) throw new Error(`Failed to load ${targetUrl}`);
 
-    // ✅ If the page doesn't render, throw a useful error (helps debug instantly)
-    try {
-      await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
-    } catch {
-      const urlNow = page.url();
-      const status = resp.status();
-      const html = (await page.content()).slice(0, 600);
-      throw new Error(
-        `Export page did not render. url=${urlNow} status=${status} html=${JSON.stringify(
-          html
-        )}`
-      );
+    if (!resp) {
+      throw new Error(`Failed to load ${url} (no response)`);
+    }
+    if (!resp.ok()) {
+      throw new Error(`Failed to load ${url} (status ${resp.status()})`);
     }
 
-    // Wait for charts (same behavior as before)
+    // Wait for root + charts to exist (same as before)
+    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
     await page.waitForSelector(".exec-print-charts .recharts-surface", {
       timeout: 60_000,
     });
 
-    // Fonts (best-effort)
+    // Fonts (best effort)
     try {
       await page.waitForFunction(
         () =>
@@ -246,6 +234,7 @@ export async function POST(req: Request) {
       // ignore
     }
 
+    // small settle time for charts/layout
     await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
@@ -279,9 +268,6 @@ export async function POST(req: Request) {
       },
     });
 
-    await browser.close();
-    browser = null;
-
     const filename = `executive-summary-${new Date()
       .toISOString()
       .slice(0, 10)}.pdf`;
@@ -298,14 +284,13 @@ export async function POST(req: Request) {
       },
     });
   } catch (e: unknown) {
-    // ensure browser closes on error
+    const msg = e instanceof Error ? e.message : "Failed to generate PDF";
+    return new NextResponse(msg, { status: 500 });
+  } finally {
     try {
       await browser?.close();
     } catch {
       // ignore
     }
-
-    const msg = e instanceof Error ? e.message : "Failed to generate PDF";
-    return new NextResponse(msg, { status: 500 });
   }
 }
