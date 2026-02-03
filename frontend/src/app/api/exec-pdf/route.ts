@@ -35,8 +35,8 @@ function firstExisting(paths: string[]) {
   for (const p of paths) {
     try {
       if (p && fs.existsSync(p)) return p;
-    } catch (err) {
-      void err;
+    } catch {
+      // ignore
     }
   }
   return "";
@@ -51,18 +51,15 @@ function chromiumBinDir() {
     // Resolve the module entry file (works even if package.json isn't exported)
     let p = require.resolve("@sparticuz/chromium");
 
-    // Walk up until we find the package root that contains /bin
-    // (limit steps to avoid infinite loops)
+    // Walk up until we find a folder containing /bin
     for (let i = 0; i < 10; i++) {
       const dir = path.dirname(p);
       const candidateBin = path.join(dir, "bin");
       if (fs.existsSync(candidateBin)) return candidateBin;
       p = dir;
     }
-
     return "";
-  } catch (err) {
-    void err;
+  } catch {
     return "";
   }
 }
@@ -79,7 +76,9 @@ async function resolveChromeExecutablePath() {
   if (isVercel) {
     // ✅ Tell sparticuz exactly where its brotli/bin assets are
     const bin = chromiumBinDir();
-    const p = bin ? await chromium.executablePath(bin) : await chromium.executablePath();
+    const p = bin
+      ? await chromium.executablePath(bin)
+      : await chromium.executablePath();
     if (p && fs.existsSync(p)) return p;
   }
 
@@ -120,13 +119,26 @@ async function resolveChromeExecutablePath() {
   ]);
 }
 
+/**
+ * ✅ Fix for Vercel: always prefer VERCEL_URL when present.
+ * Header-based host/proto can be unreliable in serverless.
+ */
+function resolveBaseUrl(req: Request) {
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto") || "http";
+  return host ? `${proto}://${host}` : "http://localhost:3000";
+}
+
 export async function POST(req: Request) {
+  let browser: puppeteer.Browser | null = null;
+
   try {
     const payload = (await req.json()) as ExecExportPayload;
 
-    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
+    const baseUrl = resolveBaseUrl(req);
 
     const manifest = (payload as { manifest?: unknown })?.manifest as
       | Record<string, unknown>
@@ -151,7 +163,8 @@ export async function POST(req: Request) {
 
     const reportTitle = "Segmentation & Growth Recommendations";
     const confidentiality = "Confidential — For internal use only";
-    const dateLabel = todayStamp(createdAt) || todayStamp(new Date().toISOString());
+    const dateLabel =
+      todayStamp(createdAt) || todayStamp(new Date().toISOString());
 
     const executablePath = await resolveChromeExecutablePath();
     if (!executablePath) {
@@ -163,7 +176,7 @@ export async function POST(req: Request) {
 
     const isVercel = !!process.env.VERCEL;
 
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       executablePath,
       headless: true,
       defaultViewport: { width: 1240, height: 1754 },
@@ -179,28 +192,48 @@ export async function POST(req: Request) {
 
     const page = await browser.newPage();
 
+    // Put payload in sessionStorage for /export/executive page
     const raw = JSON.stringify(payload);
     await page.evaluateOnNewDocument(
       (k: string, v: string) => {
         try {
           sessionStorage.setItem(k, v);
-        } catch (err) {
-          void err;
+        } catch {
+          // ignore
         }
       },
       EXEC_EXPORT_KEY,
       raw
     );
 
-    await page.goto(`${baseUrl}/export/executive?print=1`, {
-      waitUntil: ["domcontentloaded", "networkidle0"],
-    });
+    // ✅ Safer URL build (handles trailing slashes etc.)
+    const targetUrl = new URL("/export/executive?print=1", baseUrl).toString();
 
-    await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
+    const resp = await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+    });
+    if (!resp) throw new Error(`Failed to load ${targetUrl}`);
+
+    // ✅ If the page doesn't render, throw a useful error (helps debug instantly)
+    try {
+      await page.waitForSelector(".exec-print-root", { timeout: 60_000 });
+    } catch {
+      const urlNow = page.url();
+      const status = resp.status();
+      const html = (await page.content()).slice(0, 600);
+      throw new Error(
+        `Export page did not render. url=${urlNow} status=${status} html=${JSON.stringify(
+          html
+        )}`
+      );
+    }
+
+    // Wait for charts (same behavior as before)
     await page.waitForSelector(".exec-print-charts .recharts-surface", {
       timeout: 60_000,
     });
 
+    // Fonts (best-effort)
     try {
       await page.waitForFunction(
         () =>
@@ -208,9 +241,10 @@ export async function POST(req: Request) {
           "loaded",
         { timeout: 30_000 }
       );
-    } catch (err) {
-      void err;
+    } catch {
+      // ignore
     }
+
     await new Promise((r) => setTimeout(r, 250));
 
     const footerTemplate = `
@@ -245,8 +279,11 @@ export async function POST(req: Request) {
     });
 
     await browser.close();
+    browser = null;
 
-    const filename = `executive-summary-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = `executive-summary-${new Date()
+      .toISOString()
+      .slice(0, 10)}.pdf`;
 
     const buf = Buffer.from(pdf);
     const body = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
@@ -260,6 +297,13 @@ export async function POST(req: Request) {
       },
     });
   } catch (e: unknown) {
+    // ensure browser closes on error
+    try {
+      await browser?.close();
+    } catch {
+      // ignore
+    }
+
     const msg = e instanceof Error ? e.message : "Failed to generate PDF";
     return new NextResponse(msg, { status: 500 });
   }
