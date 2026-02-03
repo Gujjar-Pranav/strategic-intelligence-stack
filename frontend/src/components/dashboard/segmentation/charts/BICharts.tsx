@@ -49,10 +49,16 @@ function KpiRow({ children }: { children: React.ReactNode }) {
 
 type MqlLegacy = MediaQueryList & {
   addListener?: (
-    listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void
+    listener: (
+      this: MediaQueryList,
+      ev: MediaQueryListEvent
+    ) => void
   ) => void;
   removeListener?: (
-    listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void
+    listener: (
+      this: MediaQueryList,
+      ev: MediaQueryListEvent
+    ) => void
   ) => void;
 };
 
@@ -243,261 +249,204 @@ export function BICharts({
   const xTick = makeXTicker(isPrintMode);
   const tooltipProps = makeTooltipProps(isPrintMode);
 
-  // ✅ Keep your existing behavior:
-  // - print: fixed chart area
-  // - non-print: responsive full-height (ChartCard controls it)
-  const nonPrintHeight: number | `${number}%` = "100%";
+  // ✅ KEY CHANGE:
+  // Always let ResponsiveContainer fill the parent.
+  // The parent (.exec-chart-body) already has a fixed print height in ChartCard.
+  const chartHeight: number | `${number}%` = "100%";
 
-  // ✅ PDF stability:
-  // - these are the container heights that give Recharts a measurable box
-  const PRINT_CHART_PX = 260;
-  const PRINT_CONTAINER_STYLE: React.CSSProperties = {
-    height: PRINT_CHART_PX,
-    width: "100%",
-  };
-
-  const chartMargin = isPrintMode
-    ? { left: 6, right: 6, bottom: 26 }
-    : { left: 10, right: 10, bottom: 40 };
-
-  const xAxisHeight = isPrintMode ? 52 : 70;
   const commonBarProps = { isAnimationActive: !isPrintMode };
 
+  // Slightly tighter margins in print so charts use space better,
+  // but same chart/data and same layout.
+  const chartMargin = isPrintMode
+    ? { top: 6, left: 6, right: 6, bottom: 28 }
+    : { top: 10, left: 10, right: 10, bottom: 40 };
+
+  const xAxisHeight = isPrintMode ? 56 : 70;
+
   return (
-    <>
-      {/* Print-only CSS to prevent splitting and to force 1-column layout in PDF */}
-      <style jsx global>{`
-        @media print {
-          .bi-charts-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .bi-chart-item {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <ChartCard
+        title="Revenue Share vs Customer Share"
+        subtitle="Profit engine vs volume engine"
+        meta={
+          <KpiRow>
+            <KpiChip label="Rev max" value={`${max(revVals).toFixed(1)}%`} />
+            <KpiChip label="Rev avg" value={`${avg(revVals).toFixed(1)}%`} />
+            <KpiChip label="Cust max" value={`${max(custVals).toFixed(1)}%`} />
+            <KpiChip label="Cust avg" value={`${avg(custVals).toFixed(1)}%`} />
+          </KpiRow>
         }
-      `}</style>
+      >
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={revenueChart} margin={chartMargin}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="cluster"
+              height={xAxisHeight}
+              tick={xTick}
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <YAxis
+              tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="revenue_pct"
+              name="Revenue"
+              fill={COLORS.blue}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="customer_pct"
+              name="Customers"
+              fill={COLORS.purple}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-      <div className="bi-charts-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <div className="bi-chart-item">
-          <ChartCard
-            title="Revenue Share vs Customer Share"
-            subtitle="Profit engine vs volume engine"
-            meta={
-              <KpiRow>
-                <KpiChip label="Rev max" value={`${max(revVals).toFixed(1)}%`} />
-                <KpiChip label="Rev avg" value={`${avg(revVals).toFixed(1)}%`} />
-                <KpiChip
-                  label="Cust max"
-                  value={`${max(custVals).toFixed(1)}%`}
-                />
-                <KpiChip
-                  label="Cust avg"
-                  value={`${avg(custVals).toFixed(1)}%`}
-                />
-              </KpiRow>
-            }
-          >
-            <div style={isPrintMode ? PRINT_CONTAINER_STYLE : undefined}>
-              <ResponsiveContainer
-                width="100%"
-                height={isPrintMode ? "100%" : nonPrintHeight}
-              >
-                <BarChart data={revenueChart} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="cluster"
-                    height={xAxisHeight}
-                    tick={xTick}
-                    interval={0}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <Tooltip {...tooltipProps} />
-                  <Bar
-                    dataKey="revenue_pct"
-                    name="Revenue"
-                    fill={COLORS.blue}
-                    radius={[8, 8, 0, 0]}
-                    {...commonBarProps}
-                  />
-                  <Bar
-                    dataKey="customer_pct"
-                    name="Customers"
-                    fill={COLORS.purple}
-                    radius={[8, 8, 0, 0]}
-                    {...commonBarProps}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartCard>
-        </div>
+      <ChartCard
+        title="Promo Response by Cluster"
+        subtitle="Target promos where response is highest"
+        meta={
+          <KpiRow>
+            <KpiChip label="Max" value={`${max(promoVals).toFixed(1)}%`} />
+            <KpiChip label="Avg" value={`${avg(promoVals).toFixed(1)}%`} />
+            <KpiChip label="Sorted" value="High → Low" />
+          </KpiRow>
+        }
+      >
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={promoChart} margin={chartMargin}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="cluster"
+              height={xAxisHeight}
+              tick={xTick}
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <YAxis
+              tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="promo_response"
+              name="Promo response"
+              fill={COLORS.emerald}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-        <div className="bi-chart-item">
-          <ChartCard
-            title="Promo Response by Cluster"
-            subtitle="Target promos where response is highest"
-            meta={
-              <KpiRow>
-                <KpiChip label="Max" value={`${max(promoVals).toFixed(1)}%`} />
-                <KpiChip label="Avg" value={`${avg(promoVals).toFixed(1)}%`} />
-                <KpiChip label="Sorted" value="High → Low" />
-              </KpiRow>
-            }
-          >
-            <div style={isPrintMode ? PRINT_CONTAINER_STYLE : undefined}>
-              <ResponsiveContainer
-                width="100%"
-                height={isPrintMode ? "100%" : nonPrintHeight}
-              >
-                <BarChart data={promoChart} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="cluster"
-                    height={xAxisHeight}
-                    tick={xTick}
-                    interval={0}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <Tooltip {...tooltipProps} />
-                  <Bar
-                    dataKey="promo_response"
-                    name="Promo response"
-                    fill={COLORS.emerald}
-                    radius={[8, 8, 0, 0]}
-                    {...commonBarProps}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartCard>
-        </div>
+      <ChartCard
+        title="Discount Addiction Risk"
+        subtitle="Apply guardrails to high-risk cohorts"
+        meta={
+          <KpiRow>
+            <KpiChip label="Max" value={`${max(riskVals).toFixed(1)}%`} />
+            <KpiChip label="Avg" value={`${avg(riskVals).toFixed(1)}%`} />
+            <KpiChip label="Sorted" value="High → Low" />
+          </KpiRow>
+        }
+      >
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={riskChart} margin={chartMargin}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="cluster"
+              height={xAxisHeight}
+              tick={xTick}
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <YAxis
+              tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="discount_addicted"
+              name="Discount addicted"
+              fill={COLORS.rose}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
 
-        <div className="bi-chart-item">
-          <ChartCard
-            title="Discount Addiction Risk"
-            subtitle="Apply guardrails to high-risk cohorts"
-            meta={
-              <KpiRow>
-                <KpiChip label="Max" value={`${max(riskVals).toFixed(1)}%`} />
-                <KpiChip label="Avg" value={`${avg(riskVals).toFixed(1)}%`} />
-                <KpiChip label="Sorted" value="High → Low" />
-              </KpiRow>
-            }
-          >
-            <div style={isPrintMode ? PRINT_CONTAINER_STYLE : undefined}>
-              <ResponsiveContainer
-                width="100%"
-                height={isPrintMode ? "100%" : nonPrintHeight}
-              >
-                <BarChart data={riskChart} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="cluster"
-                    height={xAxisHeight}
-                    tick={xTick}
-                    interval={0}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <Tooltip {...tooltipProps} />
-                  <Bar
-                    dataKey="discount_addicted"
-                    name="Discount addicted"
-                    fill={COLORS.rose}
-                    radius={[8, 8, 0, 0]}
-                    {...commonBarProps}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartCard>
-        </div>
-
-        <div className="bi-chart-item">
-          <ChartCard
-            title="Channel Strategy Mix"
-            subtitle="Where each segment prefers to buy (stacked)"
-            meta={
-              <KpiRow>
-                <KpiChip label="Web avg" value={`${avg(webVals).toFixed(1)}%`} />
-                <KpiChip
-                  label="Store avg"
-                  value={`${avg(storeVals).toFixed(1)}%`}
-                />
-                <KpiChip
-                  label="Catalog avg"
-                  value={`${avg(catalogVals).toFixed(1)}%`}
-                />
-              </KpiRow>
-            }
-          >
-            <div style={isPrintMode ? PRINT_CONTAINER_STYLE : undefined}>
-              <ResponsiveContainer
-                width="100%"
-                height={isPrintMode ? "100%" : nonPrintHeight}
-              >
-                <BarChart data={channelChart} margin={chartMargin}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="cluster"
-                    height={xAxisHeight}
-                    tick={xTick}
-                    interval={0}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
-                  />
-                  <Tooltip {...tooltipProps} />
-                  <Bar
-                    dataKey="web"
-                    name="Web"
-                    stackId="a"
-                    fill={COLORS.teal}
-                    radius={[8, 8, 0, 0]}
-                    {...commonBarProps}
-                  />
-                  <Bar
-                    dataKey="store"
-                    name="Store"
-                    stackId="a"
-                    fill={COLORS.amber}
-                    {...commonBarProps}
-                  />
-                  <Bar
-                    dataKey="catalog"
-                    name="Catalog"
-                    stackId="a"
-                    fill={COLORS.purple}
-                    {...commonBarProps}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartCard>
-        </div>
-      </div>
-    </>
+      <ChartCard
+        title="Channel Strategy Mix"
+        subtitle="Where each segment prefers to buy (stacked)"
+        meta={
+          <KpiRow>
+            <KpiChip label="Web avg" value={`${avg(webVals).toFixed(1)}%`} />
+            <KpiChip label="Store avg" value={`${avg(storeVals).toFixed(1)}%`} />
+            <KpiChip
+              label="Catalog avg"
+              value={`${avg(catalogVals).toFixed(1)}%`}
+            />
+          </KpiRow>
+        }
+      >
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={channelChart} margin={chartMargin}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="cluster"
+              height={xAxisHeight}
+              tick={xTick}
+              interval={0}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <YAxis
+              tick={{ fontSize: isPrintMode ? 10 : 12, fill: "#000000" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(226, 232, 240, 1)" }}
+            />
+            <Tooltip {...tooltipProps} />
+            <Bar
+              dataKey="web"
+              name="Web"
+              stackId="a"
+              fill={COLORS.teal}
+              radius={[8, 8, 0, 0]}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="store"
+              name="Store"
+              stackId="a"
+              fill={COLORS.amber}
+              {...commonBarProps}
+            />
+            <Bar
+              dataKey="catalog"
+              name="Catalog"
+              stackId="a"
+              fill={COLORS.purple}
+              {...commonBarProps}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+    </div>
   );
 }
