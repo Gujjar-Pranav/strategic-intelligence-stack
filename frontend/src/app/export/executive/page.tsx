@@ -952,6 +952,14 @@ const PRINT_CSS = `
   /* Prevent lonely headings */
   .exec-section { break-after: avoid-page; page-break-after: avoid; }
 
+  /* ✅ Ensure Recharts has measurable space in headless print */
+  .exec-print-charts { min-height: 900px; }
+  .exec-print-charts > * { min-height: 900px; }
+  .exec-print-charts .recharts-responsive-container {
+    min-height: 900px !important;
+    height: 900px !important;
+  }
+
   /* Charts: parent controls height; responsive container fills it */
   .exec-print-charts .recharts-responsive-container { width: 100% !important; height: 100% !important; }
 
