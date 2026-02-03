@@ -163,7 +163,6 @@ export async function POST(req: Request) {
     browser = await puppeteer.launch({
       executablePath,
       headless: true,
-      ignoreHTTPSErrors: true,
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
