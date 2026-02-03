@@ -184,7 +184,7 @@ export async function POST(req: Request) {
     browser = await puppeteer.launch({
       executablePath,
       // ✅ do not use chromium.headless (not in typings). This works in puppeteer v24+
-      headless: "new",
+      headless: true,
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
