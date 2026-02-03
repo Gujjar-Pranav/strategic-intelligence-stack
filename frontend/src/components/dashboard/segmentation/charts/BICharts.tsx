@@ -48,18 +48,8 @@ function KpiRow({ children }: { children: React.ReactNode }) {
 }
 
 type MqlLegacy = MediaQueryList & {
-  addListener?: (
-    listener: (
-      this: MediaQueryList,
-      ev: MediaQueryListEvent
-    ) => void
-  ) => void;
-  removeListener?: (
-    listener: (
-      this: MediaQueryList,
-      ev: MediaQueryListEvent
-    ) => void
-  ) => void;
+  addListener?: (listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void) => void;
+  removeListener?: (listener: (this: MediaQueryList, ev: MediaQueryListEvent) => void) => void;
 };
 
 function useIsPrintMode(printModeProp?: boolean) {
@@ -81,6 +71,7 @@ function useIsPrintMode(printModeProp?: boolean) {
     }
 
     if (typeof window !== "undefined" && "matchMedia" in window) {
+      // Many browsers support this; in some Safari versions addListener/removeListener is used.
       const mql = window.matchMedia("print") as MqlLegacy;
       const onChange = () => setIsPrinting(!!mql.matches);
       onChange();
@@ -89,6 +80,7 @@ function useIsPrintMode(printModeProp?: boolean) {
         mql.addEventListener("change", onChange);
         return () => mql.removeEventListener("change", onChange);
       } catch {
+        // Safari fallback (legacy API)
         mql.addListener?.(onChange);
         return () => mql.removeListener?.(onChange);
       }
@@ -249,20 +241,15 @@ export function BICharts({
   const xTick = makeXTicker(isPrintMode);
   const tooltipProps = makeTooltipProps(isPrintMode);
 
-  // ✅ KEY CHANGE:
-  // Always let ResponsiveContainer fill the parent.
-  // The parent (.exec-chart-body) already has a fixed print height in ChartCard.
-  const chartHeight: number | `${number}%` = "100%";
-
+  // ✅ Recharts expects: number | `${number}%`
+  const chartHeight: number | `${number}%` = isPrintMode ? 180 : "100%";
   const commonBarProps = { isAnimationActive: !isPrintMode };
 
-  // Slightly tighter margins in print so charts use space better,
-  // but same chart/data and same layout.
   const chartMargin = isPrintMode
-    ? { top: 6, left: 6, right: 6, bottom: 28 }
-    : { top: 10, left: 10, right: 10, bottom: 40 };
+    ? { left: 6, right: 6, bottom: 26 }
+    : { left: 10, right: 10, bottom: 40 };
 
-  const xAxisHeight = isPrintMode ? 56 : 70;
+  const xAxisHeight = isPrintMode ? 52 : 70;
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
