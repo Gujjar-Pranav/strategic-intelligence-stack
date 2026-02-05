@@ -22,7 +22,7 @@ function MetricChip({
 }
 
 export function TopSegmentSpotlight({ tables }: { tables: any }) {
-  // ✅ Hooks must be called unconditionally
+  //  Hooks must be called unconditionally
   const [open, setOpen] = React.useState(true);
 
   const persona = Array.isArray(tables.persona_table) ? tables.persona_table : [];

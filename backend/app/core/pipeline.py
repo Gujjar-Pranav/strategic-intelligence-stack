@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
-
 def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     report = {}
 
@@ -64,7 +63,6 @@ def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
     return df, report
 
-
 def cap_outliers_iqr(df: pd.DataFrame) -> pd.DataFrame:
     cap_cols = [
         "Income",
@@ -86,7 +84,6 @@ def cap_outliers_iqr(df: pd.DataFrame) -> pd.DataFrame:
         df[col] = df[col].clip(lower, upper)
 
     return df
-
 
 def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     # Age
@@ -142,7 +139,7 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     existing_product_cols = [c for c in product_cols if c in df.columns]
     df["Product_Variety"] = (df[existing_product_cols] > 0).sum(axis=1)
 
-    # Discount addiction index (from notebook)
+    # Discount addiction index
     df["Discount_Addicted"] = (
         (df["Deal_Dependency"] > 0.5) &
         (df["Avg_Spend_Per_Purchase"] < df["Avg_Spend_Per_Purchase"].median())
@@ -152,7 +149,6 @@ def feature_engineering(df: pd.DataFrame) -> pd.DataFrame:
     df["CLV_Proxy"] = df["Avg_Spend_Per_Purchase"] * df["Frequency_RFM"] * df.get("Customer_Tenure", 0)
 
     return df
-
 
 def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     df, report = clean_data(df)

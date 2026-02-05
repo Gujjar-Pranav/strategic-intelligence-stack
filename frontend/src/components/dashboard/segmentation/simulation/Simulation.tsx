@@ -58,7 +58,7 @@ export function Simulation({ mode, tables }: { mode: Mode; tables: any }) {
 
   const simulateMut = useMutation({
     mutationFn: async (payload: any) => {
-      // real-time for demo + upload (same as your working version)
+      // real-time for demo + upload (same as working version)
       return simulateLocalFromTables(tables, payload);
     },
   });
@@ -110,7 +110,7 @@ export function Simulation({ mode, tables }: { mode: Mode; tables: any }) {
   const net = getAmount("Net Revenue Impact");
   const netIsNeg = Number.isFinite(net) && net < 0;
 
-  // number-only colors (no layout changes)
+  // number-only colors
   const classCurrent = "text-slate-700";
   const classLoss = "text-rose-600";
   const classGain = "text-emerald-700";

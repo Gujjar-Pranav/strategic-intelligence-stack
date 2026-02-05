@@ -3,7 +3,6 @@ from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, silhouette_samples
 
-
 FINAL_FEATURES = [
     "Income", "Age", "Total_Children",
     "Recency_RFM", "Frequency_RFM", "Monetary_RFM",
@@ -12,7 +11,6 @@ FINAL_FEATURES = [
     "Promo_Responsive", "Deal_Dependency",
     "Product_Variety",
 ]
-
 
 def evaluate_scaler(X: pd.DataFrame, scaler, name: str, k: int = 4) -> dict:
     Xs = scaler.fit_transform(X)
@@ -41,7 +39,6 @@ def evaluate_scaler(X: pd.DataFrame, scaler, name: str, k: int = 4) -> dict:
 
 
 def scaler_score(r: dict) -> float:
-    # same idea as your notebook:
     # reward silhouette, penalize negative silhouettes
     return (r["Silhouette_Mean"] * 100.0) - (r["Negative_Silhouette_%"] * 2.0)
 

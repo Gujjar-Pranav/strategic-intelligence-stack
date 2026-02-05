@@ -1,6 +1,6 @@
 import type { Mode } from "./types";
 
-/** ---------- Formatting ---------- */
+/**  Formatting  */
 export function fmtNumber(x: any, digits = 0) {
   const n = Number(x);
   if (!Number.isFinite(n)) return "—";
@@ -17,7 +17,7 @@ export function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-/** ---------- Clipboard ---------- */
+/**  Clipboard  */
 export async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
@@ -37,7 +37,7 @@ export async function copyText(text: string) {
   }
 }
 
-/** ---------- Normalize manifest shape (upload) ---------- */
+/**  Normalize manifest shape (upload)  */
 export function normalizeManifest(raw: any) {
   // if wrapped: { status, run_id, files, manifest: {...} }
   if (raw && typeof raw === "object" && raw.manifest && raw.manifest.run) return raw.manifest;
@@ -49,7 +49,7 @@ export function normalizeFiles(raw: any) {
   return undefined;
 }
 
-/** ---------- Data extraction (demo+upload) ---------- */
+/**  Data extraction (demo+upload)  */
 export function getTables(mode: Mode, demoClusterInsights: any, manifestRaw: any) {
   if (mode === "demo") return demoClusterInsights?.tables ?? {};
   const mf = normalizeManifest(manifestRaw);
@@ -74,7 +74,7 @@ export function getClusterNames(tables: any): string[] {
   return Array.from(new Set(names));
 }
 
-/** ---------- Recommendations logic ---------- */
+/**  Recommendations logic  */
 export function toActionBullets({
   personaRow,
   promoRow,
@@ -126,7 +126,7 @@ export function toActionBullets({
   return Array.from(new Set(bullets)).slice(0, 3);
 }
 
-/** ---------- Decision banner + action tiles ---------- */
+/**  Decision banner + action tiles  */
 export function buildDecisionBanner({ tables }: { tables: any }) {
   const revenue = Array.isArray(tables.revenue_contribution_named) ? tables.revenue_contribution_named : [];
   const promo = Array.isArray(tables.promo_roi) ? tables.promo_roi : [];

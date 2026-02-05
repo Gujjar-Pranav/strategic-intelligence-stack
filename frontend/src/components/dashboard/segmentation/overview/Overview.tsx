@@ -81,7 +81,7 @@ export function Overview({
     );
   }
 
-  /** ---------- DEMO ---------- */
+  /**  DEMO  */
   if (mode === "demo") {
     if (demoInsightsQ.isLoading || demoClusterInsightsQ.isLoading) {
       return <div className="text-sm text-gray-900">Loading BI…</div>;
@@ -154,7 +154,7 @@ export function Overview({
     );
   }
 
-  /** ---------- UPLOAD ---------- */
+  /**  UPLOAD  */
   if (manifestQ.isLoading) return <div className="text-sm text-gray-900">Loading manifest…</div>;
   if (manifestQ.isError) return <div className="text-sm text-red-600">Failed to load manifest.</div>;
   if (!manifest?.run) return <div className="text-sm text-gray-900">Manifest response shape unexpected.</div>;
@@ -176,7 +176,7 @@ export function Overview({
                     className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 hover:bg-gray-50"
                     onClick={async () => {
                       const ok = await copyText(JSON.stringify(manifestRaw, null, 2));
-                      alert(ok ? "Copied manifest JSON ✅" : "Copy failed ❌");
+                      alert(ok ? "Copied manifest JSON " : "Copy failed ");
                     }}
                   >
                     Copy manifest JSON
@@ -212,8 +212,8 @@ export function Overview({
         <div className="lg:col-span-5 space-y-4">
           <TopSegmentSpotlight tables={tables} />
 
-          {/* Optional: “quick status” cards from manifest if you want later.
-              For now we keep the right side clean and premium. */}
+          {/* Optional: “quick status” cards from manifest if  want later.
+              For now  keep the right side clean and premium. */}
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <SectionHeader title="What to do next" subtitle="Use Segments + Tables to operationalize campaigns." />
             <div className="mt-3 text-sm text-gray-900 space-y-2">

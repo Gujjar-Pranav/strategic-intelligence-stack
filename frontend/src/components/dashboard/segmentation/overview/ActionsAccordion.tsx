@@ -181,7 +181,7 @@ export function ActionsAccordion({ tables }: { tables: any }) {
 
           return (
             <div key={name} className="rounded-xl border border-gray-200 overflow-hidden">
-              {/* ✅ FIX: outer is no longer a <button> to avoid nested button */}
+              {/*  FIX: outer is no longer a <button> to avoid nested button */}
               <div
                 role="button"
                 tabIndex={0}

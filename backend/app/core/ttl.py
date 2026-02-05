@@ -6,9 +6,7 @@ from pathlib import Path
 import re
 import shutil
 
-
 TTL_RE = re.compile(r"^\s*(\d+)\s*([mhd])\s*$", re.IGNORECASE)
-
 
 def parse_ttl_to_seconds(ttl: str) -> int:
     """
@@ -31,7 +29,6 @@ def parse_ttl_to_seconds(ttl: str) -> int:
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 def cleanup_expired_runs(runs_dir: Path) -> dict:
     """
@@ -65,7 +62,6 @@ def cleanup_expired_runs(runs_dir: Path) -> dict:
             deleted += 1
 
     return {"scanned": scanned, "deleted": deleted}
-
 
 def compute_expires_at(seconds: int) -> datetime:
     return utc_now() + timedelta(seconds=seconds)

@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as ExecExportPayload;
 
-    // IMPORTANT: build the absolute URL to your own deployment
+    // IMPORTANT: build the absolute URL to  own deployment
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
     const proto = req.headers.get("x-forwarded-proto") || "http";
     const baseUrl = host ? `${proto}://${host}` : "http://localhost:3000";
@@ -166,7 +166,7 @@ export async function POST(req: Request) {
 
     browser = await puppeteer.launch({
       executablePath,
-      headless: true, // ✅ compatible with your current puppeteer-core typings
+      headless: true, //  compatible with  current puppeteer-core typings
       defaultViewport: { width: 1240, height: 1754 },
       args: isVercel
         ? chromium.args
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     const page = await browser.newPage();
 
     /**
-     * ✅ CRITICAL FIX:
+     *  CRITICAL FIX:
      * Forward cookies (auth/session) from the incoming request to Puppeteer.
      * Without this, /export/executive can return 401 in production -> selector never appears.
      */
@@ -190,7 +190,7 @@ export async function POST(req: Request) {
       await page.setExtraHTTPHeaders({ cookie: cookieHeader });
     }
 
-    // Also forward Authorization if you ever use it (safe no-op if absent)
+    // Also forward Authorization if anyone ever use it (safe no-op if absent)
     const authHeader = req.headers.get("authorization");
     if (authHeader) {
       await page.setExtraHTTPHeaders({

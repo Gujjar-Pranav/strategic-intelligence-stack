@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 def run_budget_simulation(
     df: pd.DataFrame,
     budget_shift_pct: float,

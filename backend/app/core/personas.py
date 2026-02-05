@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 CLUSTER_NAMES = {
     0: "Budget-Conscious Families",
     1: "High-Value Loyal Customers",
@@ -31,12 +30,10 @@ CLUSTER_PERSONAS = {
     },
 }
 
-
 def attach_cluster_names(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["Cluster_Name"] = df["Cluster"].map(CLUSTER_NAMES).fillna("Unknown")
     return df
-
 
 def build_persona_table() -> list[dict]:
     rows = []
@@ -52,14 +49,12 @@ def build_persona_table() -> list[dict]:
         )
     return rows
 
-
 def _safe_mean_table(df: pd.DataFrame, group_col: str, cols: list[str], round_n: int) -> pd.DataFrame:
     cols_present = [c for c in cols if c in df.columns]
     if not cols_present:
         return pd.DataFrame({group_col: sorted(df[group_col].unique())})
     out = df.groupby(group_col)[cols_present].mean().round(round_n).reset_index()
     return out
-
 
 def _safe_rate(df: pd.DataFrame, group_col: str, col: str, out_col: str, round_n: int = 3) -> pd.DataFrame:
     if col not in df.columns:
@@ -72,7 +67,6 @@ def _safe_rate(df: pd.DataFrame, group_col: str, col: str, out_col: str, round_n
         .rename(columns={col: out_col})
     )
 
-
 def compute_cluster_tables(df: pd.DataFrame) -> dict:
     """
     Notebook-style tables by Cluster_Name.
@@ -84,9 +78,7 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
     if "Cluster_Name" not in df.columns:
         raise ValueError("compute_cluster_tables requires df['Cluster_Name'].")
 
-    # -----------------------------
     # Revenue contribution by cluster
-    # -----------------------------
     has_id = "ID" in df.columns
 
     # Customers: ID count if available, else row count
@@ -117,9 +109,7 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
 
     revenue_contribution = revenue_contribution.sort_values("Revenue_%", ascending=False)
 
-    # -----------------------------
     # RFM summary (always available in features mode)
-    # -----------------------------
     rfm_summary = _safe_mean_table(
         df,
         "Cluster_Name",
@@ -127,11 +117,9 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
         round_n=2,
     )
 
-    # -----------------------------
     # Promo ROI
     # In raw mode Avg_Spend = Total_Spend mean
     # In features mode fallback Avg_Spend = Monetary_RFM mean (proxy)
-    # -----------------------------
     promo_roi = df.groupby("Cluster_Name").agg(
         Promo_Response_Rate=("Promo_Responsive", "mean"),
         Avg_Deal_Dependency=("Deal_Dependency", "mean"),
@@ -150,25 +138,17 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
         .sort_values("Promo_Response_Rate", ascending=False)
     )
 
-    # -----------------------------
     # Channel strategy matrix
     # Catalog_Purchase_Ratio exists only in raw mode; keep if present.
-    # -----------------------------
     channel_cols = ["Web_Purchase_Ratio", "Store_Purchase_Ratio", "Catalog_Purchase_Ratio"]
     channel_strategy = _safe_mean_table(df, "Cluster_Name", channel_cols, round_n=3)
 
-    # -----------------------------
     # Discount addiction risk
-    # Exists only if computed upstream.
-    # If missing: return None values rather than crash.
-    # -----------------------------
+    # Exists only if computed upstream.If missing: return None values rather than crash.
     discount_risk = _safe_rate(df, "Cluster_Name", "Discount_Addicted", "Discount_Addicted_Rate", round_n=3)
 
-    # -----------------------------
     # CLV proxy summary
-    # Exists only if computed upstream.
-    # If missing: return None values rather than crash.
-    # -----------------------------
+    # Exists only if computed upstream.If missing: return None values rather than crash.
     if "CLV_Proxy" in df.columns:
         clv_summary = (
             df.groupby("Cluster_Name")["CLV_Proxy"]
@@ -183,11 +163,10 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
             {"Cluster_Name": sorted(df["Cluster_Name"].unique()), "Avg_CLV_Proxy": [None] * df["Cluster_Name"].nunique()}
         )
 
-    # -----------------------------
-    # Cluster summary (notebook-style)
+    # Cluster summary
     # In features-only mode, remove columns that don't exist.
     # Avg_Total_Spend uses Total_Spend if present else Monetary_RFM proxy.
-    # -----------------------------
+
     agg_map = {
         "Avg_Income": ("Income", "mean") if "Income" in df.columns else None,
         "Avg_Frequency": ("Frequency_RFM", "mean") if "Frequency_RFM" in df.columns else None,
@@ -230,7 +209,7 @@ def compute_cluster_tables(df: pd.DataFrame) -> dict:
 
     cluster_summary["Customer_%"] = (cluster_summary["Customers"] / max(1, len(df)) * 100).round(2)
 
-    # Rounding (keep your notebook style)
+    # Rounding
     for c in ["Avg_Income", "Avg_Total_Spend", "Avg_Frequency", "Avg_Recency"]:
         if c in cluster_summary.columns:
             cluster_summary[c] = pd.to_numeric(cluster_summary[c], errors="coerce").round(2)

@@ -2,11 +2,9 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-
 def build_cluster_bar_data(cluster_counts: list[dict]) -> list[dict]:
     # expects [{"cluster_id":0,"customers":...}, ...]
     return [{"cluster_id": r["cluster_id"], "customers": r["customers"]} for r in cluster_counts]
-
 
 def build_normalized_heatmap(df: pd.DataFrame, features: list[str]) -> dict:
     """
@@ -25,7 +23,6 @@ def build_normalized_heatmap(df: pd.DataFrame, features: list[str]) -> dict:
         "cols": profile_norm.columns.tolist(),
         "values": profile_norm.round(3).values.tolist(),
     }
-
 
 def build_pca_payload(
     scaled_X: np.ndarray,

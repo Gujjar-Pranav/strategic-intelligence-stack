@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 def run_cluster_budget_simulation(
     df: pd.DataFrame,
     source_cluster_name: str,
@@ -10,12 +9,10 @@ def run_cluster_budget_simulation(
     loss_source: float,
 ) -> dict:
     """
-    Notebook-style simulation based on real clusters.
     Works for:
       - raw mode (Total_Spend exists)
       - features-only mode (fallback to Monetary_RFM as revenue proxy)
     """
-
     # Revenue column (raw vs features)
     revenue_col = "Total_Spend" if "Total_Spend" in df.columns else "Monetary_RFM"
     revenue_is_proxy = revenue_col != "Total_Spend"
@@ -53,7 +50,7 @@ def run_cluster_budget_simulation(
         revenue_base.loc[revenue_base["Cluster_Name"] == target_cluster_name, "Total_Revenue"].values[0]
     )
 
-    # Notebook-style impact
+    # Impact
     revenue_loss = rev_source * loss_source * budget_shift_pct
     revenue_gain = rev_target * uplift_target * budget_shift_pct
     net_revenue_change = revenue_gain - revenue_loss

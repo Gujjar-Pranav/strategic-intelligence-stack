@@ -13,7 +13,7 @@ export function ExportsTab({
   manifestFiles,
   manifestRaw,
   manifest,
-  // ✅ add these so PDF export can generate a real exec summary
+  //  add these so PDF export can generate a real exec summary
   decisionBanner,
   actionTiles,
   tables,
@@ -41,7 +41,7 @@ export function ExportsTab({
 
   return (
     <div className="space-y-4">
-      {/* ✅ Executive PDF export (works in demo + upload) */}
+      {/*  Executive PDF export (works in demo + upload) */}
       {pdfPayload ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -61,7 +61,7 @@ export function ExportsTab({
         </div>
       )}
 
-      {/* ✅ Existing scored.xlsx export (upload only) */}
+      {/*  Existing scored.xlsx export (upload only) */}
       {mode === "demo" ? (
         <div className="text-sm text-gray-900">
           Demo mode doesn’t generate <code>scored.xlsx</code>. Use Upload mode for dataset exports.

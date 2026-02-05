@@ -1,4 +1,4 @@
-/** ---------- Premium palette ---------- */
+/**  Premium palette  */
 export const COLORS = {
   ink: "#0B0F19",
   slate: "#64748b",

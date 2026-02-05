@@ -26,9 +26,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Customer Segmentation API", version="0.2.0")
 
-# --- CORS ---
+# CORS
 # Set this on Render:
-# CORS_ORIGINS=https://<your-vercel-domain>,https://<your-vercel-preview-domain>
 cors_env = os.getenv("CORS_ORIGINS", "")
 cors_origins = [o.strip() for o in cors_env.split(",") if o.strip()]
 
@@ -38,7 +37,7 @@ cors_origins += [
     "http://127.0.0.1:3000",
 ]
 
-# Optional: allow all vercel previews for your project (safe + convenient)
+# Optional: allow all vercel previews for  project (safe + convenient)
 # If you want strict-only, remove this and rely only on CORS_ORIGINS.
 cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app")
 
@@ -54,12 +53,9 @@ app.add_middleware(
 ALLOWED_EXTENSIONS = {".csv", ".xlsx"}
 MAX_FILE_MB = 25
 
-
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
 
 def _validate_upload(file: UploadFile) -> str:
     filename = (file.filename or "").lower().strip()
@@ -73,7 +69,6 @@ def _validate_upload(file: UploadFile) -> str:
             detail=f"Unsupported file type '{ext}'. Please upload CSV or XLSX only."
         )
     return ext
-
 
 @app.post("/api/upload/preview")
 async def upload_preview(file: UploadFile = File(...)):
@@ -104,10 +99,7 @@ async def upload_preview(file: UploadFile = File(...)):
         "preview": df.head(preview_rows).to_dict(orient="records"),
     }
 
-
-
 DATA_PATH = Path("backend/data/marketing_campaign.xlsx")
-
 
 @app.get("/api/demo")
 def demo_summary():
@@ -119,10 +111,10 @@ def demo_summary():
 
     df = pd.read_excel(DATA_PATH, engine="openpyxl")
 
-    # Minimal demo KPIs (we will expand later)
+    # Minimal demo KPIs ( will expand later)
     total_customers = df["ID"].nunique() if "ID" in df.columns else len(df)
 
-    # Spend columns in your notebook
+    # Spend columns
     spend_cols = [
         "MntWines", "MntFruits", "MntMeatProducts",
         "MntFishProducts", "MntSweetProducts", "MntGoldProds"
@@ -197,7 +189,6 @@ def demo_features():
         "engineered_columns": df.columns.tolist(),
     }
 
-
 @app.get("/api/demo/insights")
 def demo_insights():
     if not DATA_PATH.exists():
@@ -241,7 +232,6 @@ def demo_clusters():
 
     clustering = run_kmeans_with_best_scaler(df, k=4)
 
-    # Don't return full df yet (too big). We'll add exports later.
     return {
         "mode": "demo",
         "data_quality_report": report,
@@ -287,7 +277,7 @@ def demo_cluster_visuals(sample_size: int = 1200):
     clustering = run_kmeans_with_best_scaler(df, k=4)
     dfc = attach_cluster_names(clustering["df_with_clusters"])
 
-    # heatmap uses FINAL_FEATURES (same as notebook)
+    # heatmap uses FINAL_FEATURES
     heatmap = build_normalized_heatmap(dfc, FINAL_FEATURES)
 
     # bar chart data
@@ -324,7 +314,7 @@ def demo_cluster_simulation(payload: SimulationRequest):
     clustering = run_kmeans_with_best_scaler(df, k=4)
     dfc = attach_cluster_names(clustering["df_with_clusters"])
 
-    # notebook fixed persona names
+    # Fixed persona names
     source_cluster = "Budget-Conscious Families"
     target_cluster = "High-Value Loyal Customers"
 
@@ -393,7 +383,7 @@ async def upload_run(
             },
         )
 
-    # ✅ rename alias columns to canonical names
+    #  rename alias columns to canonical names
     raw_df = apply_renames(raw_df, vr.renamed)
 
     config = RunConfig(model_version="v1", sample_size=sample_size)
@@ -412,14 +402,12 @@ async def upload_run(
         "manifest": saved["manifest"],
     }
 
-
 @app.get("/api/runs/{run_id}/manifest")
 def get_manifest(run_id: str):
     path = RUNS_DIR / run_id / "manifest.json"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Run not found (maybe expired).")
     return FileResponse(path, media_type="application/json", filename="manifest.json")
-
 
 @app.get("/api/runs/{run_id}/scored.xlsx")
 def get_scored_xlsx(run_id: str):

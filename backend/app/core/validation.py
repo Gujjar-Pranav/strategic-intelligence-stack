@@ -3,10 +3,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
-
 import pandas as pd
 
-# --- Column normalization helpers ---
+# Column normalization helpers
 
 def _norm(s: str) -> str:
     # normalize for matching: lowercase, remove non-alphanum
@@ -22,7 +21,7 @@ def normalize_columns(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, str]]:
     return df, norm_map
 
 
-# --- Validation contract ---
+#  Validation contract
 
 FINAL_FEATURES = [
     "Income", "Age", "Total_Children",
@@ -84,7 +83,6 @@ class ValidationResult:
     renamed: Dict[str, str]  # canonical -> actual
     message: str
 
-
 def detect_and_validate(df: pd.DataFrame) -> ValidationResult:
     df, norm_map = normalize_columns(df)
 
@@ -138,7 +136,6 @@ def detect_and_validate(df: pd.DataFrame) -> ValidationResult:
         renamed={c: raw_hits[c] for c in RAW_REQUIRED},
         message="Detected raw dataset (required columns present).",
     )
-
 
 def apply_renames(df: pd.DataFrame, renamed: Dict[str, str]) -> pd.DataFrame:
     """

@@ -8,7 +8,6 @@ from backend.app.core.clustering import run_kmeans_with_best_scaler, FINAL_FEATU
 from backend.app.core.personas import CLUSTER_NAMES
 from backend.app.core.model_store import ModelBundle, bundle_path, save_bundle, utc_now_iso
 
-
 def train_and_save_production_bundle(
     demo_data_path: Path,
     version: str = "v1",

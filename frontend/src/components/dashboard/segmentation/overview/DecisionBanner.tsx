@@ -73,7 +73,7 @@ export function DecisionBanner({
   decisionBanner: string;
   meta?: {
     tone?: Tone;
-    tags?: string[]; // optional, for PDF-style labeling if you want later
+    tags?: string[]; // optional, for PDF-style labeling if  want later
   };
 }) {
   const tone = meta?.tone ?? getTone(decisionBanner);

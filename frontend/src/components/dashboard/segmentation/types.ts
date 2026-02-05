@@ -7,7 +7,7 @@ export type TabKey =
 
 export type Mode = "idle" | "demo" | "upload";
 
-/** ---------- Simulation (recompute) ---------- */
+/**  Simulation (recompute)  */
 export type SimRecomputeState = {
   source_cluster: string;
   target_cluster: string;

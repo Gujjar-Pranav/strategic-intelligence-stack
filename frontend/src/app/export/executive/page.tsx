@@ -461,7 +461,7 @@ export default function ExecutiveExportPage() {
     <div className={clsx("exec-print-root bg-white p-8", isPdf && "exec-pdf")}>
       <style jsx global>{PRINT_CSS}</style>
 
-      {/* ================= PAGE 1: COVER + TOC (combined) ================= */}
+      {/* PAGE 1: COVER + TOC (combined)  */}
       <div className="exec-cover-toc exec-keep">
         <div className="exec-cover-top">
           <div className="text-xs text-gray-600">{reportSub}</div>
@@ -520,7 +520,7 @@ export default function ExecutiveExportPage() {
         </div>
       </div>
 
-      {/* ================= PAGE 2: OVERVIEW + DECISION + KPIs ================= */}
+      {/*  PAGE 2: OVERVIEW + DECISION + KPIs  */}
       <section className="exec-page exec-page-2">
         <div className="exec-section">
           <div className="exec-section-kicker">1. Executive Overview</div>
@@ -679,7 +679,7 @@ export default function ExecutiveExportPage() {
         </div>
       </section>
 
-      {/* ================= PAGE 3: INSIGHTS + ACTIONS ================= */}
+      {/*  PAGE 3: INSIGHTS + ACTIONS  */}
       <section className="exec-page exec-page-3">
         <div className="exec-section">
           <div className="exec-section-kicker">3. Insights</div>
@@ -768,7 +768,7 @@ export default function ExecutiveExportPage() {
         </div>
       </section>
 
-      {/* ================= PAGE 4: VISUALS ================= */}
+      {/*  PAGE 4: VISUALS  */}
       <section className="exec-page exec-page-4">
         <div className="exec-section">
           <div className="exec-section-kicker">5. Performance visuals</div>
@@ -792,7 +792,7 @@ export default function ExecutiveExportPage() {
         </div>
       </section>
 
-      {/* ================= PAGE 5+: APPENDIX ================= */}
+      {/*  PAGE 5+: APPENDIX  */}
       <section className="exec-page exec-page-5">
         <div className="exec-section">
           <div className="exec-section-kicker">6. Appendix</div>
@@ -945,14 +945,14 @@ const PRINT_CSS = `
   /* Let Puppeteer header/footer handle top/bottom; don't reserve extra space */
   .exec-print-root { padding: 0 !important; margin: 0 auto !important; }
 
-  /* ✅ Hard page starts (prevents random blank pages) */
+  /*  Hard page starts (prevents random blank pages) */
   .exec-page { break-before: page; page-break-before: always; }
   .exec-cover-toc { break-before: auto; page-break-before: auto; }
 
   /* Prevent lonely headings */
   .exec-section { break-after: avoid-page; page-break-after: avoid; }
 
-  /* ✅ Ensure Recharts has measurable space in headless print */
+  /*  Ensure Recharts has measurable space in headless print */
   .exec-print-charts { min-height: 900px; }
   .exec-print-charts > * { min-height: 900px; }
   .exec-print-charts .recharts-responsive-container {

@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 def compute_business_insights(df: pd.DataFrame) -> dict:
     # KPIs
     total_customers = int(df["ID"].nunique()) if "ID" in df.columns else int(len(df))

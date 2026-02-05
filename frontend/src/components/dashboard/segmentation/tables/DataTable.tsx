@@ -22,7 +22,7 @@ function clamp01(x: number) {
 }
 
 /**
- * ONLY number coloring (no layout changes)
+ * ONLY number coloring
  */
 function numColor(variant: TableVariant, col: string, n?: number) {
   if (typeof n !== "number") return "text-gray-900";
@@ -53,7 +53,7 @@ function numColor(variant: TableVariant, col: string, n?: number) {
       col === "Store_Purchase_Ratio" ||
       col === "Catalog_Purchase_Ratio"
     ) {
-      // keep your number color (single tone)
+      // keep oen number color (single tone)
       return "text-teal-600";
     }
   }
@@ -72,8 +72,8 @@ function numColor(variant: TableVariant, col: string, n?: number) {
 }
 
 /**
- * ✅ Bar fill color (micro-bars / mini-bars / spark bars)
- * Keep it consistent with numColor without changing layout.
+ *  Bar fill color (micro-bars / mini-bars / spark bars)
+ * Keep it consistent with numColor
  */
 function barColor(variant: TableVariant, col: string, n?: number) {
   // Defaults
@@ -222,7 +222,7 @@ function cellRenderer(
       ? n.toLocaleString(undefined, { maximumFractionDigits: digits })
       : String(raw ?? "—");
 
-  // ---- Revenue table micro visuals
+  //  Revenue table micro visuals
   if (variant === "revenue") {
     if (col === "Revenue_%") {
       const pctVal = pickNumber(raw); // already percent number
@@ -269,7 +269,7 @@ function cellRenderer(
     }
   }
 
-  // ---- Promo table micro visuals
+  //  Promo table micro visuals
   if (variant === "promo") {
     if (col === "Promo_Response_Rate") {
       const rate = pickNumber(raw); // 0..1
@@ -316,7 +316,7 @@ function cellRenderer(
     }
   }
 
-  // ---- Risk table micro visuals
+  //  Risk table micro visuals
   if (variant === "risk") {
     if (col === "Discount_Addicted_Rate") {
       const r = pickNumber(raw); // 0..1
@@ -348,7 +348,7 @@ function cellRenderer(
     }
   }
 
-  // ---- Channel table micro visuals
+  //  Channel table micro visuals
   if (variant === "channel") {
     if (
       col === "Web_Purchase_Ratio" ||
@@ -401,7 +401,7 @@ function cellRenderer(
     }
   }
 
-  // ---- CLV table micro visuals
+  //  CLV table micro visuals
   if (variant === "clv") {
     if (col === "Avg_CLV_Proxy") {
       const n = pickNumber(raw);
@@ -413,7 +413,7 @@ function cellRenderer(
     }
   }
 
-  // ---- RFM table micro visuals
+  //  RFM table micro visuals
   if (variant === "rfm") {
     if (
       col === "Recency_RFM" ||
@@ -450,10 +450,10 @@ export function DataTable({
   rows: any[];
   variant?: TableVariant;
 }) {
-  // ✅ memoized so deps are stable (fixes exhaustive-deps warning)
+  //  memoized so deps are stable (fixes exhaustive-deps warning)
   const safeRows = React.useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
 
-  // ✅ memoized as well (derived from safeRows)
+  //  memoized as well (derived from safeRows)
   const cols = React.useMemo(() => Object.keys(safeRows[0] ?? {}), [safeRows]);
 
   const [q, setQ] = React.useState("");

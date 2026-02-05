@@ -4,15 +4,11 @@ import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
-  // -----------------------------
   // Base JS + TS recommendations
-  // -----------------------------
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
-  // -----------------------------
   // Next.js rules
-  // -----------------------------
   {
     plugins: {
       "@next/next": nextPlugin,
@@ -22,23 +18,19 @@ export default [
     },
   },
 
-  // -----------------------------
-  // React Hooks (FIXES missing rule error)
-  // -----------------------------
+  // React Hooks
   {
     plugins: {
       "react-hooks": reactHooks,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // You can keep this as "warn" if you want less noise
+      // Can keep this as "warn" if you want less noise
       "react-hooks/exhaustive-deps": "warn",
     },
   },
 
-  // -----------------------------
   // Allow `any` in data-heavy / export / backend-style files
-  // -----------------------------
   {
     files: [
       "src/app/api/**/*.{ts,tsx}",
@@ -56,9 +48,7 @@ export default [
     },
   },
 
-  // -----------------------------
   // Print / export pages (window, sessionStorage, etc.)
-  // -----------------------------
   {
     files: ["src/app/export/**/*.{ts,tsx}"],
     rules: {

@@ -22,13 +22,13 @@ function Pill({ icon, label }: { icon: React.ReactNode; label: string }) {
 function ColorNumbers({ text }: { text: string }) {
   if (!text) return null;
 
-  // Removed unnecessary escapes: \₹ and \-
+
   const parts = text.split(/(\$?₹?-?\d+(?:,\d{3})*(?:\.\d+)?%?)/g);
 
   return (
     <>
       {parts.map((part, idx) => {
-        // Removed unnecessary escapes: \₹ and \-
+
         const isNumberLike = /^(\$?₹?-?\d+(?:,\d{3})*(?:\.\d+)?%?)$/.test(part);
 
         if (!isNumberLike) return <React.Fragment key={idx}>{part}</React.Fragment>;
@@ -90,7 +90,7 @@ export function ActionTilesSection({
 }) {
   const [open, setOpen] = React.useState(true);
 
-  // ✅ In printMode: always open, no accordion UI
+  //  In printMode: always open, no accordion UI
   const isOpen = printMode ? true : open;
 
   const presets = [

@@ -1,4 +1,3 @@
-// src/lib/api.ts
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "http://127.0.0.1:8000";
 
@@ -24,7 +23,7 @@ async function http<T = any>(path: string, opts: FetchOpts = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** ---------- Downloads ---------- **/
+/** Downloads  **/
 
 export async function downloadFile(pathOrUrl: string, filename: string) {
   const url = pathOrUrl.startsWith("http")
@@ -42,7 +41,7 @@ export async function downloadFile(pathOrUrl: string, filename: string) {
   URL.revokeObjectURL(a.href);
 }
 
-/** ---------- Upload / Runs ---------- **/
+/**  Upload / Runs  **/
 
 export type UploadRunResponse = {
   run_id: string;
@@ -85,7 +84,7 @@ export async function downloadScoredXlsxByRunId(runId: string) {
   return await downloadFile(`/api/runs/${encodeURIComponent(runId)}/scored.xlsx`, `scored_${runId}.xlsx`);
 }
 
-/** ---------- Demo ---------- **/
+/**  Demo  **/
 
 export async function fetchDemoInsights(): Promise<any> {
   return await http<any>("/api/demo/insights");

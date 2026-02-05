@@ -13,12 +13,10 @@ from backend.app.core.personas import attach_cluster_names, CLUSTER_NAMES
 from backend.app.core.visuals import build_normalized_heatmap, build_pca_payload, build_cluster_bar_data
 from backend.app.core.simulation_clusters import run_cluster_budget_simulation
 
-
 def load_base_df(base_path: str) -> pd.DataFrame:
     with gzip.open(base_path, "rb") as f:
         raw_bytes = f.read()
     return pd.read_csv(io.BytesIO(raw_bytes))
-
 
 def recompute_manifest_for_run(run_dir, params) -> dict:
     base_path = run_dir / "base.csv.gz"

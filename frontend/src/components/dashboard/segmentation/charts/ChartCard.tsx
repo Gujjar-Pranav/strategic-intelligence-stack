@@ -57,7 +57,7 @@ export function ChartCard({
           "exec-chart-body mt-3 rounded-xl bg-white",
           open ? "block" : "hidden",
           "print:block",
-          // ✅ tighter in PDF so 2x2 charts fit on one page
+          //  tighter in PDF so 2x2 charts fit on one page
           "h-72 print:h-[210px]",
           "break-inside-avoid print:break-inside-avoid"
         )}

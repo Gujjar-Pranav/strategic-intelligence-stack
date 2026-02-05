@@ -241,7 +241,7 @@ export function BICharts({
   const xTick = makeXTicker(isPrintMode);
   const tooltipProps = makeTooltipProps(isPrintMode);
 
-  // ✅ Recharts expects: number | `${number}%`
+  //  Recharts expects: number | `${number}%`
   const chartHeight: number | `${number}%` = isPrintMode ? 180 : "100%";
   const commonBarProps = { isAnimationActive: !isPrintMode };
 

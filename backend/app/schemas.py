@@ -1,11 +1,9 @@
 from pydantic import BaseModel, Field
 
-
 class SimulationRequest(BaseModel):
     budget_shift_pct: float = Field(default=0.15, ge=0, le=1)
     uplift_target: float = Field(default=0.05, ge=0, le=1)
     loss_source: float = Field(default=0.02, ge=0, le=1)
-
 
 class RunTuningParams(BaseModel):
     # clustering

@@ -57,7 +57,7 @@ function Item({
         {label}
       </span>
 
-      {/* ✅ Only color the numeric parts */}
+      {/*  Only color the numeric parts */}
       <span className={clsx("font-semibold", emphasize ? "text-white" : "text-gray-900")}>
         <ColorNumbers value={value} />
       </span>

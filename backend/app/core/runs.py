@@ -18,24 +18,19 @@ from backend.app.core.visuals import build_normalized_heatmap, build_pca_payload
 from backend.app.core.simulation_clusters import run_cluster_budget_simulation
 from backend.app.core.ttl import compute_expires_at
 
-
 RUNS_DIR = Path("backend/app/storage/runs")
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
-
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
 
 @dataclass
 class RunConfig:
     model_version: str = "v1"
     sample_size: int = 1200
 
-
 def create_run_id() -> str:
     return uuid.uuid4().hex[:12]
-
 
 def run_inference_pipeline(
     raw_df: pd.DataFrame,
@@ -86,7 +81,7 @@ def run_inference_pipeline(
         sample_size=config.sample_size,
     )
 
-    # 7) simulation (same cluster names as notebook)
+    # 7) simulation
     sim = run_cluster_budget_simulation(
         df=df_out,
         source_cluster_name="Budget-Conscious Families",
@@ -119,8 +114,6 @@ def run_inference_pipeline(
         "df_scored": df_out,
         "manifest": manifest,
     }
-
-
 
 def save_run_outputs(
     df_scored: pd.DataFrame,

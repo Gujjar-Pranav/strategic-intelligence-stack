@@ -50,7 +50,7 @@ function Chip({
 }
 
 export function SegmentsTab({ tables }: { tables: any }) {
-  // ✅ Memoize these slices so references are stable and hooks deps are correct
+  //  Memoize these slices so references are stable and hooks deps are correct
   const clusterSummary = React.useMemo(
     () =>
       Array.isArray(tables?.cluster_summary) ? tables.cluster_summary : [],
@@ -100,7 +100,7 @@ export function SegmentsTab({ tables }: { tables: any }) {
 
   const [selected, setSelected] = React.useState<string>(names[0] ?? "");
 
-  // ✅ Fix exhaustive-deps: depend on names array (stable now), not names.join("|")
+  //  Fix exhaustive-deps: depend on names array (stable now), not names.join("|")
   React.useEffect(() => {
     if (!selected && names[0]) setSelected(names[0]);
     if (selected && !names.includes(selected)) setSelected(names[0] ?? "");
@@ -138,7 +138,7 @@ export function SegmentsTab({ tables }: { tables: any }) {
   const actionText = String(selectedPersona?.Business_Action ?? "").trim();
   const traitsText = String(selectedPersona?.Key_Traits ?? "").trim();
 
-  // --- number-only color helpers (no layout changes)
+  // number-only color helpers
   const classRevenue = "text-sky-700";
   const classCustomers = "text-slate-700";
   const classPromo =
